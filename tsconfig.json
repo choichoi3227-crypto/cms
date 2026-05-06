@@ -1,18 +1,18 @@
 {
+  "extends": "astro/tsconfigs/strict",
   "compilerOptions": {
-    "target": "ES2022",
-    "lib": ["ES2022"],
-    "module": "ES2022",
-    "moduleResolution": "bundler",
-    "strict": true,
-    "noEmit": true,
-    "skipLibCheck": true,
-    "types": ["@cloudflare/workers-types"],
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./worker/src/*"]
-    }
+      "@/*": ["src/*"]
+    },
+    "types": ["@cloudflare/workers-types"],
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "jsx": "react-jsx",
+    "jsxImportSource": "react"
   },
-  "include": ["worker/src/**/*.ts"],
-  "exclude": ["node_modules"]
+  "include": ["src/**/*", "build-scripts/**/*"],
+  "exclude": ["node_modules", "dist", ".astro"]
 }
