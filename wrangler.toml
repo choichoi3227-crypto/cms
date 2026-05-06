@@ -10,7 +10,7 @@
 #     wrangler deploy  →  main = "dist/_worker.js" 로 배포
 
 name                   = "cloudpress-cms"
-pages_build_output_dir = "dist"
+pages_build_output_dir = "."
 compatibility_date     = "2025-04-01"
 compatibility_flags    = ["nodejs_compat"]
 
