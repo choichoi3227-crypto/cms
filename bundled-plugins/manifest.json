@@ -1,0 +1,93 @@
+{
+  "plugins": [
+    {
+      "slug": "wp-rocket",
+      "name": "WP Rocket",
+      "version": "3.17.0",
+      "description": "페이지 캐싱, CSS/JS 최적화, 이미지 지연 로딩으로 사이트를 초고속으로 만듭니다. Cloudflare Workers 환경에 최적화된 버전.",
+      "author": "WP Media",
+      "author_uri": "https://wp-rocket.me",
+      "plugin_uri": "https://wp-rocket.me",
+      "requires": "5.0",
+      "requires_php": "7.4",
+      "main_file": "wp-rocket/wp-rocket.php",
+      "icon": "dashicons-performance",
+      "category": "performance",
+      "features": [
+        "페이지 캐시 (Cloudflare KV 기반)",
+        "CSS/JS 압축 및 최소화",
+        "이미지 지연 로딩 (Lazy Load)",
+        "JS 지연 실행 (Defer)",
+        "캐시 자동 만료 및 갱신"
+      ]
+    },
+    {
+      "slug": "aibp-pro",
+      "name": "AIBP Pro: AI Blog Posting",
+      "version": "1.2.2",
+      "description": "제미나이로 SEO 최적화된 블로그 글을 자동 작성합니다. AI 썸네일 이미지 생성, 스키마 마크업, SEO 메타 자동화 포함.",
+      "author": "jiji15899",
+      "author_uri": "",
+      "plugin_uri": "",
+      "requires": "5.0",
+      "requires_php": "7.4",
+      "main_file": "aibp-pro/aibp-pro.php",
+      "icon": "dashicons-edit-large",
+      "category": "ai",
+      "image_worker": "https://aibp100.jiji15899.workers.dev",
+      "features": [
+        "GPT/Claude AI 블로그 글 자동 작성",
+        "AI 썸네일 이미지 생성 (Cloudflare Worker)",
+        "SEO 메타 태그 자동화",
+        "스키마 마크업 생성",
+        "콘텐츠 확장 기능",
+        "구텐베르크 메타박스 통합"
+      ]
+    },
+    {
+      "slug": "alpack",
+      "name": "AL Pack (PressLearn Plugin)",
+      "version": "1.3.1",
+      "description": "방문자 통계, 소셜 공유 버튼, 무효 클릭 차단, 스크롤 깊이 추적 등을 제공하는 통합 플러그인.",
+      "author": "PressLearn",
+      "author_uri": "",
+      "plugin_uri": "",
+      "requires": "5.0",
+      "requires_php": "7.4",
+      "main_file": "alpack/presslearn-plugin.php",
+      "icon": "dashicons-chart-bar",
+      "category": "analytics",
+      "features": [
+        "실시간 방문자 통계",
+        "소셜 공유 버튼 (카카오/네이버/페이스북/트위터/라인)",
+        "무효 클릭 차단 (애드센스 보호)",
+        "스크롤 깊이 추적",
+        "클릭 히트맵",
+        "AI 이미지 생성 (Cloudflare Worker 연동)"
+      ]
+    },
+    {
+      "slug": "bridge-migration",
+      "name": "Bridge Migration",
+      "version": "1.1.0",
+      "description": "기존 WordPress 사이트의 모든 데이터를 CF-WordPress로 완벽하게 이전합니다. 클라우드웨이즈, 카페24, 가비아 등 모든 호스팅 지원.",
+      "author": "Bridge Team",
+      "author_uri": "",
+      "plugin_uri": "",
+      "requires": "5.0",
+      "requires_php": "7.4",
+      "main_file": "bridge-migration/bridge-migration.php",
+      "icon": "dashicons-migrate",
+      "category": "migration",
+      "features": [
+        "게시글/페이지 이전",
+        "미디어 파일 이전 (GitHub 스토리지)",
+        "설정 및 옵션 이전",
+        "사용자 데이터 이전",
+        "자동 백업 및 복원",
+        "증분 이전 지원",
+        "모든 호스팅 환경 지원"
+      ]
+    }
+  ]
+}
