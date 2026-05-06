@@ -1,23 +1,37 @@
 {
-  "name": "cf-wordpress",
+  "name": "cloudpress-cms",
   "version": "1.0.0",
-  "description": "클라우드플레어 기반 워드프레스",
+  "description": "CloudPress CMS — WordPress on Cloudflare Workers (Astro + php-wasm)",
   "private": true,
+  "type": "module",
   "scripts": {
-    "dev": "wrangler dev --local",
-    "deploy": "wrangler deploy",
-    "db:migrate": "wrangler d1 migrations apply cfwp-db",
-    "db:migrate:local": "wrangler d1 migrations apply cfwp-db --local",
-    "build": "tsc --noEmit && esbuild worker/src/index.ts --bundle --outfile=dist/worker.js --platform=browser --target=es2022 --format=esm --external:node:*",
-    "typecheck": "tsc --noEmit"
+    "dev": "astro dev",
+    "build": "astro build",
+    "build:vfs": "node build-scripts/build-vfs.js",
+    "preview": "astro preview",
+    "deploy": "npm run build && wrangler deploy",
+    "deploy:dry": "npm run build && wrangler deploy --dry-run",
+    "db:init": "wrangler d1 execute cloudpress-cms-db --file=schema.sql",
+    "db:init:remote": "wrangler d1 execute cloudpress-cms-db --remote --file=schema.sql",
+    "logs": "wrangler tail",
+    "check": "astro check",
+    "cf:create-d1": "wrangler d1 create cloudpress-cms-db",
+    "cf:create-kv-cache": "wrangler kv namespace create CACHE",
+    "cf:create-kv-session": "wrangler kv namespace create SESSION_SWAP",
+    "setup": "npm run cf:create-d1 && npm run cf:create-kv-cache && npm run cf:create-kv-session"
   },
   "dependencies": {
-    "@cloudflare/workers-types": "^4.20240924.0",
-    "itty-router": "^5.0.18"
+    "@astrojs/cloudflare": "^11.2.0",
+    "@php-wasm/web": "^0.9.17",
+    "astro": "^4.16.19"
   },
   "devDependencies": {
-    "esbuild": "^0.24.0",
-    "typescript": "^5.6.3",
-    "wrangler": "^3.80.0"
+    "@cloudflare/workers-types": "^4.20250430.0",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0",
+    "wrangler": "^4.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
