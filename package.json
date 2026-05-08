@@ -1,28 +1,20 @@
 {
   "name": "cloudpress-cms",
   "version": "1.0.0",
-  "description": "CloudPress CMS — WordPress on Cloudflare Workers (Astro + php-wasm)",
+  "description": "CloudPress CMS — WordPress-compatible CMS on Cloudflare Pages",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
-    "build:vfs": "node build-scripts/build-vfs.js",
     "preview": "astro preview",
     "deploy": "npm run build && wrangler deploy",
-    "deploy:dry": "npm run build && wrangler deploy --dry-run",
-    "db:init": "wrangler d1 execute cloudpress-cms-db --file=schema.sql",
-    "db:init:remote": "wrangler d1 execute cloudpress-cms-db --remote --file=schema.sql",
+    "db:init": "wrangler d1 execute cloudpress-cms-db --remote --file=schema.sql",
     "logs": "wrangler tail",
-    "check": "astro check",
-    "cf:create-d1": "wrangler d1 create cloudpress-cms-db",
-    "cf:create-kv-cache": "wrangler kv namespace create CACHE",
-    "cf:create-kv-session": "wrangler kv namespace create SESSION_SWAP",
-    "setup": "npm run cf:create-d1 && npm run cf:create-kv-cache && npm run cf:create-kv-session"
+    "check": "astro check"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^11.2.0",
-    "@php-wasm/web": "^0.9.17",
     "astro": "^4.16.19"
   },
   "devDependencies": {
