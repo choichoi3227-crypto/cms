@@ -1,0 +1,123 @@
+---
+// src/pages/admin/index.astro
+export const prerender = false;
+import CmsLayout from '../../layouts/CmsLayout.astro';
+---
+<CmsLayout title="대시보드" activeMenu="dashboard">
+  <style>
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .stat-card {
+      background: #2c3338;
+      border: 1px solid #3c434a;
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+    }
+    .stat-num  { font-size: 32px; font-weight: 800; color: #fff; }
+    .stat-label { font-size: 12px; color: #8c8f94; margin-top: 4px; }
+    .activity { background: #2c3338; border: 1px solid #3c434a; border-radius: 12px; overflow: hidden; }
+    .activity-header { padding: 16px 20px; border-bottom: 1px solid #3c434a; font-weight: 700; color: #fff; font-size: 14px; }
+    .activity-row { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-bottom: 1px solid rgba(255,255,255,.04); }
+    .activity-row:last-child { border-bottom: none; }
+    .activity-icon { width: 32px; height: 32px; border-radius: 8px; background: rgba(34,113,177,.15); display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+    .activity-text { flex: 1; font-size: 13px; color: #c3c4c7; }
+    .activity-time { font-size: 11px; color: #8c8f94; }
+    .quick-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 24px; }
+    .quick-btn {
+      background: #2c3338;
+      border: 1px solid #3c434a;
+      border-radius: 10px;
+      padding: 16px;
+      text-align: center;
+      text-decoration: none;
+      color: #c3c4c7;
+      font-size: 13px;
+      font-weight: 600;
+      transition: background .15s, border-color .15s, color .15s;
+      cursor: pointer;
+      display: block;
+    }
+    .quick-btn:hover { background: rgba(34,113,177,.15); border-color: #2271b1; color: #fff; }
+    .quick-btn .qi { font-size: 22px; display: block; margin-bottom: 6px; }
+    h2 { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 16px; }
+    h3 { font-size: 14px; font-weight: 700; color: #c3c4c7; margin-bottom: 12px; }
+  </style>
+
+  <h2>대시보드</h2>
+
+  <!-- 통계 -->
+  <div class="stats">
+    <div class="stat-card">
+      <div class="stat-num" id="st-posts">-</div>
+      <div class="stat-label">게시글</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" id="st-pages">-</div>
+      <div class="stat-label">페이지</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" id="st-media">-</div>
+      <div class="stat-label">미디어</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" id="st-comments">-</div>
+      <div class="stat-label">댓글</div>
+    </div>
+  </div>
+
+  <!-- 빠른 실행 -->
+  <h3>빠른 실행</h3>
+  <div class="quick-actions">
+    <a class="quick-btn" href="/admin/posts/new"><span class="qi">✏️</span>새 글 쓰기</a>
+    <a class="quick-btn" href="/admin/pages/new"><span class="qi">📄</span>새 페이지</a>
+    <a class="quick-btn" href="/admin/media"><span class="qi">🖼️</span>미디어 업로드</a>
+    <a class="quick-btn" href="/admin/settings"><span class="qi">⚙️</span>사이트 설정</a>
+  </div>
+
+  <!-- 최근 활동 -->
+  <h3>최근 글</h3>
+  <div class="activity" id="recent-posts">
+    <div class="activity-header">최근 게시글</div>
+    <div id="posts-list">
+      <div style="padding:24px;text-align:center;color:#8c8f94;font-size:13px;">로딩 중...</div>
+    </div>
+  </div>
+
+  <script>
+    async function loadDashboard() {
+      try {
+        const res  = await fetch('/api/posts?per_page=5');
+        const data = await res.json();
+        const posts = data.posts || [];
+        const el = document.getElementById('posts-list');
+
+        // 통계
+        document.getElementById('st-posts').textContent = data.total_posts ?? posts.length;
+        document.getElementById('st-pages').textContent = data.total_pages ?? '-';
+        document.getElementById('st-media').textContent = data.total_media ?? '-';
+        document.getElementById('st-comments').textContent = data.total_comments ?? '-';
+
+        if (!posts.length) {
+          el.innerHTML = '<div style="padding:24px;text-align:center;color:#8c8f94;font-size:13px;">아직 게시글이 없습니다. <a href="/admin/posts/new" style="color:#2271b1;">첫 글을 작성해보세요!</a></div>';
+          return;
+        }
+        el.innerHTML = posts.map(p => `
+          <div class="activity-row">
+            <div class="activity-icon">📝</div>
+            <div class="activity-text">
+              <a href="/admin/posts/${p.ID}/edit" style="color:#2271b1;text-decoration:none;font-weight:600;">${escHtml(p.post_title || '(제목 없음)')}</a>
+              <div style="font-size:11px;color:#8c8f94;margin-top:2px;">${escHtml(p.post_status || '')}</div>
+            </div>
+            <div class="activity-time">${p.post_date ? new Date(p.post_date).toLocaleDateString('ko-KR') : ''}</div>
+          </div>
+        `).join('');
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    function escHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+    loadDashboard();
+  </script>
+</CmsLayout>
