@@ -1,0 +1,380 @@
+---
+// src/pages/admin/themes.astro
+export const prerender = false;
+import CmsLayout from '../../layouts/CmsLayout.astro';
+---
+<CmsLayout title="테마" activeMenu="themes">
+  <style>
+    h2 { font-size:20px;font-weight:700;color:#fff;margin-bottom:20px; }
+    .nav-tab-wrapper { border-bottom:1px solid #3c434a;margin-bottom:20px;display:flex;gap:0; }
+    .nav-tab { padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid transparent;border-bottom:none;color:#8c8f94;background:transparent;border-radius:4px 4px 0 0;margin-bottom:-1px;transition:all .15s; }
+    .nav-tab.active,.nav-tab:hover { color:#fff;background:#2c3338;border-color:#3c434a;border-bottom-color:#2c3338; }
+    .nav-tab-content { display:none; }
+    .nav-tab-content.active { display:block; }
+    .alert { padding:10px 14px;border-radius:4px;font-size:13px;margin-bottom:16px;display:none; }
+    .alert.ok    { background:#1a3020;border:1px solid #208b45;color:#4ade80;display:block; }
+    .alert.error { background:#3b1f1f;border:1px solid #8b2020;color:#f87171;display:block; }
+    .spinner { display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;margin-right:6px; }
+    @keyframes spin { to{transform:rotate(360deg)} }
+
+    /* 설치된 테마 그리드 */
+    .themes-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:20px; }
+    .theme-card {
+      background:#2c3338;border:2px solid #3c434a;border-radius:8px;overflow:hidden;
+      transition:border-color .2s;position:relative;cursor:pointer;
+    }
+    .theme-card.active-theme { border-color:#2271b1; }
+    .theme-card:not(.active-theme):hover { border-color:#5a6272; }
+    .theme-screenshot {
+      width:100%;aspect-ratio:4/3;object-fit:cover;display:block;background:#1d2327;
+    }
+    .theme-screenshot-ph { width:100%;aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;background:#1d2327;font-size:48px; }
+    .theme-card-body { padding:14px; }
+    .theme-card-name { font-size:14px;font-weight:700;color:#fff;margin-bottom:4px;display:flex;align-items:center;gap:8px; }
+    .active-badge { background:#2271b1;color:#fff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:10px;letter-spacing:.5px; }
+    .theme-card-meta { font-size:11px;color:#8c8f94;margin-bottom:10px; }
+    .theme-card-desc { font-size:12px;color:#8c8f94;line-height:1.5;margin-bottom:12px; }
+    .theme-card-actions { display:flex;gap:8px;flex-wrap:wrap; }
+    .btn { border-radius:4px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid;transition:all .15s; }
+    .btn-activate { background:#2271b1;color:#fff;border-color:#2271b1; }
+    .btn-activate:hover { background:#135e96;border-color:#135e96; }
+    .btn-active { background:#00a32a;color:#fff;border-color:#00a32a;cursor:default; }
+    .btn-customize { background:transparent;color:#c3c4c7;border-color:#3c434a; }
+    .btn-customize:hover { border-color:#2271b1;color:#fff; }
+    .btn-delete { background:transparent;color:#f87171;border-color:#8b2020; }
+    .btn-delete:hover { background:rgba(248,113,113,.1); }
+    .btn-details { background:transparent;color:#c3c4c7;border-color:#3c434a; }
+    .btn-details:hover { border-color:#2271b1;color:#fff; }
+
+    /* 검색 */
+    .theme-search-bar { display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center; }
+    .theme-search-bar input { background:#1d2327;border:1px solid #3c434a;border-radius:4px;padding:8px 12px;color:#fff;font-size:14px;outline:none;flex:1;min-width:200px;transition:border-color .15s; }
+    .theme-search-bar input:focus { border-color:#2271b1; }
+    .btn-search { background:#2271b1;color:#fff;border:none;border-radius:4px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;transition:background .15s; }
+    .btn-search:hover { background:#135e96; }
+    .browse-btns { display:flex;gap:6px;flex-wrap:wrap; }
+    .browse-btn { background:#2c3338;border:1px solid #3c434a;border-radius:4px;padding:6px 12px;color:#c3c4c7;font-size:12px;cursor:pointer;transition:all .15s; }
+    .browse-btn.active,.browse-btn:hover { background:rgba(34,113,177,.2);border-color:#2271b1;color:#fff; }
+    .themes-search-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px; }
+    .theme-search-card { background:#2c3338;border:1px solid #3c434a;border-radius:8px;overflow:hidden;transition:border-color .15s; }
+    .theme-search-card:hover { border-color:#2271b1; }
+    .theme-search-card img { width:100%;aspect-ratio:4/3;object-fit:cover;display:block;background:#1d2327; }
+    .theme-search-card-body { padding:12px; }
+    .theme-search-card-name { font-size:13px;font-weight:700;color:#fff;margin-bottom:4px; }
+    .theme-search-card-meta { font-size:11px;color:#8c8f94;margin-bottom:10px; }
+    .theme-search-card-actions { display:flex;gap:6px; }
+    .btn-install { background:#2271b1;color:#fff;border:none;border-radius:4px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;transition:background .15s; }
+    .btn-install:hover { background:#135e96; }
+    .btn-install:disabled { background:#3c434a;cursor:not-allowed; }
+    .btn-installed { background:#00a32a;color:#fff;border:none;border-radius:4px;padding:6px 12px;font-size:12px;font-weight:700;cursor:not-allowed; }
+
+    /* zip 업로드 */
+    .upload-form { background:#2c3338;border:1px solid #3c434a;border-radius:8px;padding:24px; }
+    .upload-form p { font-size:13px;color:#8c8f94;margin-bottom:16px;line-height:1.6; }
+    #theme-drop-zone { border:2px dashed #3c434a;border-radius:8px;padding:48px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:16px; }
+    #theme-drop-zone:hover,#theme-drop-zone.drag-over { border-color:#2271b1;background:rgba(34,113,177,.05); }
+    #theme-drop-zone .dz-icon { font-size:40px;margin-bottom:12px; }
+    #theme-drop-zone p { color:#8c8f94;margin:0; }
+    #theme-drop-zone span { color:#2271b1;font-weight:600; }
+  </style>
+
+  <h2>테마</h2>
+  <div id="themes-alert" class="alert"></div>
+
+  <div class="nav-tab-wrapper">
+    <button class="nav-tab active" id="tab-installed" onclick="switchTab('installed')">설치된 테마</button>
+    <button class="nav-tab" id="tab-search" onclick="switchTab('search')">새 테마 추가</button>
+    <button class="nav-tab" id="tab-upload" onclick="switchTab('upload')">테마 업로드</button>
+  </div>
+
+  <!-- 설치된 테마 -->
+  <div class="nav-tab-content active" id="pane-installed">
+    <div id="installed-themes-grid" class="themes-grid">
+      <div style="grid-column:1/-1;padding:32px;text-align:center;color:#8c8f94;">로딩 중...</div>
+    </div>
+  </div>
+
+  <!-- 테마 검색 -->
+  <div class="nav-tab-content" id="pane-search">
+    <div class="theme-search-bar">
+      <input id="search-input" type="text" placeholder="테마 검색..." onkeydown="if(event.key==='Enter')searchThemes()" />
+      <button class="btn-search" onclick="searchThemes()">검색</button>
+      <div class="browse-btns">
+        <button class="browse-btn active" onclick="browseThemes('featured',this)">추천</button>
+        <button class="browse-btn" onclick="browseThemes('popular',this)">인기</button>
+        <button class="browse-btn" onclick="browseThemes('new',this)">최신</button>
+      </div>
+    </div>
+    <div id="search-alert" class="alert"></div>
+    <div id="themes-search-grid" class="themes-search-grid">
+      <div style="grid-column:1/-1;padding:32px;text-align:center;color:#8c8f94;">검색어를 입력하세요.</div>
+    </div>
+  </div>
+
+  <!-- zip 업로드 -->
+  <div class="nav-tab-content" id="pane-upload">
+    <div class="upload-form">
+      <h3 style="font-size:16px;font-weight:700;color:#fff;margin-bottom:12px;">테마 업로드</h3>
+      <p>구입하거나 직접 제작한 테마를 zip 파일로 업로드하여 설치합니다.</p>
+      <div id="theme-drop-zone"
+        ondragover="event.preventDefault();this.classList.add('drag-over')"
+        ondragleave="this.classList.remove('drag-over')"
+        ondrop="event.preventDefault();this.classList.remove('drag-over');handleThemeZipDrop(event.dataTransfer.files)"
+        onclick="document.getElementById('theme-zip-input').click()">
+        <div class="dz-icon">🎨</div>
+        <p><span>클릭</span>하거나 zip 파일을 드래그하세요</p>
+        <p id="theme-zip-label" style="font-size:12px;margin-top:8px;color:#4a545e;">테마 zip 파일만 허용 (최대 50MB)</p>
+      </div>
+      <input id="theme-zip-input" type="file" accept=".zip" style="display:none" onchange="handleThemeZipSelect(this)" />
+      <div id="upload-alert" class="alert"></div>
+      <button class="btn btn-activate" id="theme-upload-btn" onclick="uploadTheme()" disabled>지금 설치</button>
+    </div>
+  </div>
+
+  <script>
+    let installedThemeSlugs = new Set();
+    let selectedThemeZip = null;
+    let activeTheme = '';
+
+    function escHtml(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+    function stars(r){return '★'.repeat(Math.round((r||0)/20))+'☆'.repeat(5-Math.round((r||0)/20));}
+
+    function switchTab(tab) {
+      ['installed','search','upload'].forEach(t => {
+        document.getElementById('tab-'+t).classList.toggle('active', t===tab);
+        document.getElementById('pane-'+t).classList.toggle('active', t===tab);
+      });
+      if (tab==='search' && document.getElementById('themes-search-grid').children.length<=1) {
+        browseThemes('featured', document.querySelector('.browse-btn'));
+      }
+    }
+
+    async function loadInstalledThemes() {
+      try {
+        const res  = await fetch('/api/themes');
+        const data = await res.json();
+        const themes = data.themes || [];
+        activeTheme = data.active_theme || '';
+        installedThemeSlugs = new Set(themes.map(t => t.slug));
+        renderInstalledThemes(themes);
+      } catch (e) {
+        document.getElementById('installed-themes-grid').innerHTML =
+          `<div style="grid-column:1/-1;padding:24px;text-align:center;color:#f87171;">로드 실패: ${escHtml(e.message)}</div>`;
+      }
+    }
+
+    function renderInstalledThemes(themes) {
+      const grid = document.getElementById('installed-themes-grid');
+      if (!themes.length) {
+        grid.innerHTML = '<div style="grid-column:1/-1;padding:32px;text-align:center;color:#8c8f94;">설치된 테마가 없습니다. 새 테마를 추가하세요.</div>';
+        return;
+      }
+      grid.innerHTML = themes.map(t => {
+        const isActive = t.is_active || t.slug === activeTheme;
+        return `
+          <div class="theme-card ${isActive ? 'active-theme' : ''}">
+            ${t.screenshot_url
+              ? `<img class="theme-screenshot" src="${escHtml(t.screenshot_url)}" alt="${escHtml(t.theme_name)}" />`
+              : `<div class="theme-screenshot-ph">🎨</div>`}
+            <div class="theme-card-body">
+              <div class="theme-card-name">
+                ${escHtml(t.theme_name)}
+                ${isActive ? '<span class="active-badge">활성</span>' : ''}
+              </div>
+              <div class="theme-card-meta">버전 ${escHtml(t.version||'')} · ${escHtml(t.author||'')}</div>
+              <div class="theme-card-desc">${escHtml((t.description||'').slice(0,100))}${(t.description||'').length>100?'...':''}</div>
+              <div class="theme-card-actions">
+                ${isActive
+                  ? `<button class="btn btn-active" disabled>활성 테마</button>
+                     <a href="/admin/customize" class="btn btn-customize">커스터마이즈</a>`
+                  : `<button class="btn btn-activate" onclick="activateTheme('${t.slug}','${escHtml(t.theme_name)}')">활성화</button>`}
+                <a href="${escHtml(t.theme_url||'#')}" target="_blank" class="btn btn-details">자세히 보기</a>
+                ${!isActive ? `<button class="btn btn-delete" onclick="deleteTheme('${t.slug}','${escHtml(t.theme_name)}')">삭제</button>` : ''}
+              </div>
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    async function activateTheme(slug, name) {
+      const alertEl = document.getElementById('themes-alert');
+      alertEl.className = 'alert';
+      try {
+        const res = await fetch(`/api/themes/${slug}?action=activate`, { method:'PUT' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || '활성화 실패');
+        alertEl.className = 'alert ok';
+        alertEl.textContent = `✅ "${name}" 테마가 활성화되었습니다.`;
+        setTimeout(() => { alertEl.className='alert'; }, 4000);
+        await loadInstalledThemes();
+      } catch (e) {
+        alertEl.className = 'alert error';
+        alertEl.textContent = e.message;
+      }
+    }
+
+    async function deleteTheme(slug, name) {
+      if (!confirm(`"${name}" 테마를 삭제하시겠습니까?`)) return;
+      const alertEl = document.getElementById('themes-alert');
+      alertEl.className = 'alert';
+      try {
+        const res = await fetch(`/api/themes/${slug}`, { method:'DELETE' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || '삭제 실패');
+        alertEl.className = 'alert ok';
+        alertEl.textContent = `✅ "${name}" 테마가 삭제되었습니다.`;
+        setTimeout(() => { alertEl.className='alert'; }, 4000);
+        await loadInstalledThemes();
+      } catch (e) {
+        alertEl.className = 'alert error';
+        alertEl.textContent = e.message;
+      }
+    }
+
+    // ── WordPress.org 테마 검색 ───────────────────────────────────────────
+    async function searchThemes() {
+      const q = document.getElementById('search-input').value.trim();
+      if (!q) return;
+      document.querySelectorAll('.browse-btn').forEach(b => b.classList.remove('active'));
+      await fetchThemes(q, '');
+    }
+
+    async function browseThemes(browse, btn) {
+      document.getElementById('search-input').value = '';
+      document.querySelectorAll('.browse-btn').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+      await fetchThemes('', browse);
+    }
+
+    async function fetchThemes(q, browse) {
+      const grid = document.getElementById('themes-search-grid');
+      grid.innerHTML = `<div style="grid-column:1/-1;padding:32px;text-align:center;color:#8c8f94;"><span class="spinner"></span>검색 중...</div>`;
+
+      const params = new URLSearchParams({ per_page: 12 });
+      if (q)      params.set('q', q);
+      if (browse) params.set('browse', browse);
+
+      try {
+        const res  = await fetch('/api/themes/search?' + params);
+        const data = await res.json();
+        const themes = data.themes || [];
+
+        if (!themes.length) {
+          grid.innerHTML = '<div style="grid-column:1/-1;padding:32px;text-align:center;color:#8c8f94;">검색 결과가 없습니다.</div>';
+          return;
+        }
+
+        grid.innerHTML = themes.map(t => {
+          const isInstalled = installedThemeSlugs.has(t.slug);
+          const isActive    = t.slug === activeTheme;
+          const screenshot  = t.screenshot_url || '';
+          return `
+            <div class="theme-search-card">
+              ${screenshot
+                ? `<img src="${escHtml(screenshot)}" alt="${escHtml(t.name)}" loading="lazy" />`
+                : `<div style="width:100%;aspect-ratio:4/3;background:#1d2327;display:flex;align-items:center;justify-content:center;font-size:40px;">🎨</div>`}
+              <div class="theme-search-card-body">
+                <div class="theme-search-card-name">${escHtml(t.name)}</div>
+                <div class="theme-search-card-meta">
+                  ★${((t.rating||0)/20).toFixed(1)} · v${escHtml(t.version||'')}
+                </div>
+                <div class="theme-search-card-actions">
+                  ${isInstalled
+                    ? (isActive
+                        ? `<button class="btn-installed" disabled>✅ 활성 테마</button>`
+                        : `<button class="btn-installed" disabled>✅ 설치됨</button>`)
+                    : `<button class="btn-install" onclick="installTheme('${t.slug}','${escHtml(t.name)}',this)">설치</button>`}
+                  <a href="https://wordpress.org/themes/${t.slug}/" target="_blank" class="btn btn-details" style="font-size:11px;padding:5px 8px;">미리보기</a>
+                </div>
+              </div>
+            </div>`;
+        }).join('');
+      } catch (e) {
+        grid.innerHTML = `<div style="grid-column:1/-1;padding:24px;text-align:center;color:#f87171;">오류: ${escHtml(e.message)}</div>`;
+      }
+    }
+
+    async function installTheme(slug, name, btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span>설치 중...';
+      const alertEl = document.getElementById('search-alert');
+      alertEl.className = 'alert';
+      try {
+        const res  = await fetch('/api/themes', {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ source: 'wordpress_org', slug }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || '설치 실패');
+        btn.className   = 'btn-installed';
+        btn.textContent = '✅ 설치됨';
+        btn.disabled    = true;
+        installedThemeSlugs.add(slug);
+        alertEl.className = 'alert ok';
+        alertEl.textContent = `✅ ${data.message}`;
+        setTimeout(() => { alertEl.className='alert'; }, 5000);
+        await loadInstalledThemes();
+      } catch (e) {
+        btn.disabled = false;
+        btn.textContent = '설치';
+        alertEl.className = 'alert error';
+        alertEl.textContent = e.message;
+      }
+    }
+
+    // ── zip 업로드 ────────────────────────────────────────────────────────
+    function handleThemeZipSelect(input) {
+      const file = input.files?.[0];
+      if (!file || !file.name.endsWith('.zip')) { showUpAlert('error','zip 파일만 허용됩니다.'); return; }
+      if (file.size > 50*1024*1024) { showUpAlert('error','50MB를 초과합니다.'); return; }
+      selectedThemeZip = file;
+      document.getElementById('theme-zip-label').textContent = `선택됨: ${file.name} (${(file.size/1024/1024).toFixed(2)} MB)`;
+      document.getElementById('theme-upload-btn').disabled = false;
+    }
+
+    function handleThemeZipDrop(files) {
+      const input = document.getElementById('theme-zip-input');
+      const dt = new DataTransfer(); dt.items.add(files[0]);
+      input.files = dt.files;
+      handleThemeZipSelect(input);
+    }
+
+    async function uploadTheme() {
+      if (!selectedThemeZip) return;
+      const btn = document.getElementById('theme-upload-btn');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span>업로드 중...';
+      try {
+        const base64 = await new Promise((res, rej) => {
+          const r = new FileReader(); r.onload = () => res(r.result.split(',')[1]); r.onerror = rej; r.readAsDataURL(selectedThemeZip);
+        });
+        const resp = await fetch('/api/themes', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ source:'zip', filename:selectedThemeZip.name, data:base64, size:selectedThemeZip.size }),
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || '설치 실패');
+        showUpAlert('ok', `✅ ${data.message}`);
+        selectedThemeZip = null;
+        document.getElementById('theme-zip-input').value = '';
+        document.getElementById('theme-zip-label').textContent = '테마 zip 파일만 허용 (최대 50MB)';
+        await loadInstalledThemes();
+        setTimeout(() => switchTab('installed'), 1500);
+      } catch (e) {
+        showUpAlert('error', e.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '지금 설치';
+      }
+    }
+
+    function showUpAlert(type, msg) {
+      const el = document.getElementById('upload-alert');
+      el.className = type ? 'alert '+type : 'alert';
+      el.textContent = msg;
+    }
+
+    loadInstalledThemes();
+    browseThemes('featured', document.querySelector('.browse-btn'));
+  </script>
+</CmsLayout>
