@@ -6,15 +6,15 @@ import cloudflare from '@astrojs/cloudflare';
 export default defineConfig({
   output: 'server',
   adapter: cloudflare({
-    // v11에서는 mode 옵션 대신 platformProxy 사용
     platformProxy: {
       enabled: true,
     },
     imageService: 'passthrough',
   }),
+  // 미들웨어를 통한 인증 가드 활성화
+  // src/middleware.ts 가 자동으로 감지됩니다.
   vite: {
     ssr: {
-      // Cloudflare Workers 환경에서 외부 모듈 처리
       external: ['node:buffer', 'node:crypto', 'node:stream', 'node:util'],
       noExternal: ['@php-wasm/web'],
     },
