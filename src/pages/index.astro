@@ -1,8 +1,5 @@
 ---
 // src/pages/index.astro
-// 루트 접근 시 /admin 으로 리다이렉트
 export const prerender = false;
-
-const { redirect } = Astro;
-return redirect('/login', 302);
+return Astro.redirect('/login', 302);
 ---
