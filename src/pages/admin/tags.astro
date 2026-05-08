@@ -1,0 +1,118 @@
+---
+// src/pages/admin/tags.astro
+export const prerender = false;
+import CmsLayout from '../../layouts/CmsLayout.astro';
+---
+<CmsLayout title="태그" activeMenu="posts">
+  <style>
+    .wrap { display:grid;grid-template-columns:1fr 1fr;gap:24px; }
+    h2 { font-size:20px;font-weight:700;color:#fff;margin-bottom:20px; }
+    .card { background:#2c3338;border:1px solid #3c434a;border-radius:4px;padding:20px; }
+    .card h3 { font-size:14px;font-weight:700;color:#fff;margin-bottom:16px; }
+    .form-field { margin-bottom:14px; }
+    .form-field label { display:block;font-size:12px;color:#8c8f94;font-weight:700;margin-bottom:5px; }
+    .form-field input,.form-field textarea { width:100%;background:#1d2327;border:1px solid #3c434a;border-radius:4px;padding:8px 10px;color:#fff;font-size:13px;outline:none;transition:border-color .15s;font-family:inherit; }
+    .form-field input:focus,.form-field textarea:focus { border-color:#2271b1; }
+    .form-field .description { font-size:11px;color:#8c8f94;margin-top:4px; }
+    .btn-primary { background:#2271b1;color:#fff;border:none;border-radius:4px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;transition:background .15s; }
+    .btn-primary:hover { background:#135e96; }
+    .alert { padding:10px 14px;border-radius:4px;font-size:13px;margin-bottom:14px;display:none; }
+    .alert.ok    { background:#1a3020;border:1px solid #208b45;color:#4ade80;display:block; }
+    .alert.error { background:#3b1f1f;border:1px solid #8b2020;color:#f87171;display:block; }
+    .terms-table { background:#2c3338;border:1px solid #3c434a;border-radius:4px;overflow:hidden;width:100%;border-collapse:collapse; }
+    .terms-table thead th { padding:8px 10px;text-align:left;font-size:11px;font-weight:700;color:#8c8f94;background:rgba(255,255,255,.03);border-bottom:1px solid #3c434a;text-transform:uppercase; }
+    .terms-table tbody tr { border-bottom:1px solid rgba(255,255,255,.04);transition:background .1s; }
+    .terms-table tbody tr:last-child { border-bottom:none; }
+    .terms-table tbody tr:hover { background:rgba(255,255,255,.02); }
+    .terms-table td { padding:10px;font-size:13px;color:#c3c4c7; }
+    .term-name { font-weight:700;color:#fff;font-size:13px; }
+    .row-actions { display:flex;gap:8px;margin-top:4px; }
+    .row-actions button { font-size:12px;color:#2271b1;background:none;border:none;cursor:pointer;padding:0; }
+    .row-actions .del { color:#f87171; }
+  </style>
+
+  <h2>태그</h2>
+  <div class="wrap">
+    <div class="card">
+      <h3>새 태그 추가</h3>
+      <div id="tag-alert" class="alert"></div>
+      <div class="form-field">
+        <label>이름 *</label>
+        <input id="tag-name" type="text" placeholder="태그 이름" />
+        <div class="description">사이트에 표시되는 이름입니다.</div>
+      </div>
+      <div class="form-field">
+        <label>슬러그</label>
+        <input id="tag-slug" type="text" placeholder="자동 생성" />
+        <div class="description">URL에 사용되는 소문자 이름입니다.</div>
+      </div>
+      <div class="form-field">
+        <label>설명</label>
+        <textarea id="tag-desc" rows="3" placeholder="태그 설명 (선택)"></textarea>
+      </div>
+      <button class="btn-primary" onclick="addTag()">새 태그 추가</button>
+    </div>
+    <div>
+      <table class="terms-table">
+        <thead><tr><th>이름</th><th>슬러그</th><th>글 수</th></tr></thead>
+        <tbody id="tags-tbody"><tr><td colspan="3" style="padding:20px;text-align:center;color:#8c8f94;">로딩 중...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    function escHtml(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+    async function loadTags() {
+      try {
+        const res  = await fetch('/api/terms?taxonomy=post_tag');
+        const data = await res.json();
+        const tags = data.terms || [];
+        const tb   = document.getElementById('tags-tbody');
+        if (!tags.length) { tb.innerHTML='<tr><td colspan="3" style="padding:20px;text-align:center;color:#8c8f94;">태그가 없습니다.</td></tr>'; return; }
+        tb.innerHTML = tags.map(t => `
+          <tr>
+            <td>
+              <span class="term-name">${escHtml(t.name)}</span>
+              <div class="row-actions">
+                <button class="del" onclick="deleteTag(${t.term_id},'${escHtml(t.name)}')">삭제</button>
+              </div>
+            </td>
+            <td style="font-size:12px;color:#8c8f94;">${escHtml(t.slug)}</td>
+            <td style="color:#8c8f94;">${t.count||0}</td>
+          </tr>`).join('');
+      } catch (e) { console.error(e); }
+    }
+
+    async function addTag() {
+      const alertEl = document.getElementById('tag-alert');
+      alertEl.className = 'alert';
+      const name = document.getElementById('tag-name').value.trim();
+      if (!name) { alertEl.className='alert error'; alertEl.textContent='이름을 입력해주세요.'; return; }
+      try {
+        const res = await fetch('/api/terms', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ taxonomy:'post_tag', name, slug:document.getElementById('tag-slug').value.trim()||undefined, description:document.getElementById('tag-desc').value }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error||'추가 실패');
+        alertEl.className='alert ok'; alertEl.textContent='✅ 태그가 추가되었습니다.';
+        ['tag-name','tag-slug','tag-desc'].forEach(id=>{document.getElementById(id).value='';});
+        await loadTags();
+        setTimeout(()=>{alertEl.className='alert';},3000);
+      } catch (e) { alertEl.className='alert error'; alertEl.textContent=e.message; }
+    }
+
+    async function deleteTag(id, name) {
+      if (!confirm(`"${name}" 태그를 삭제하시겠습니까?`)) return;
+      try {
+        const res = await fetch(`/api/terms/${id}?taxonomy=post_tag`, { method:'DELETE' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error||'삭제 실패');
+        await loadTags();
+      } catch (e) { alert(e.message); }
+    }
+
+    loadTags();
+  </script>
+</CmsLayout>
