@@ -1,0 +1,11 @@
+# .dev.vars — 로컬 개발용 환경 변수 (git에 커밋하지 마세요!)
+# wrangler dev 실행 시 자동으로 읽힙니다.
+
+JWT_SECRET=local-dev-secret-change-in-production
+GITHUB_TOKEN=ghp_your_personal_access_token_here
+GITHUB_OWNER=your-github-username
+GITHUB_REPO=cloudpress-site-xxxxxxxx
+
+WP_ADMIN_USER=admin
+WP_ADMIN_PASS=admin1234!
+WP_ADMIN_EMAIL=admin@example.com
