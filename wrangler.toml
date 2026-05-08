@@ -36,7 +36,7 @@ id      = "REPLACE_WITH_YOUR_KV_SESSION_ID"
 # ── 평문 환경 변수 ────────────────────────────────────────────────────────────
 [vars]
 WP_TABLE_PREFIX = "wp_"
-SITE_URL        = "https://cloudpress-cms.pages.dev"
+SITE_URL        = "https://cloud-press.co.kr"
 GITHUB_OWNER    = ""
 GITHUB_REPO     = ""
 
