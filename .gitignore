@@ -1,9 +1,31 @@
-node_modules/
+# 빌드 결과물
 dist/
+.astro/
+
+# 의존성
+node_modules/
+
+# 환경 변수 (절대 커밋 금지)
 .dev.vars
-.wrangler/
-*.local
-.DS_Store
-*.log
 .env
-.env.local
+.env.*
+!.env.example
+!.dev.vars.example
+
+# wrangler 캐시
+.wrangler/
+
+# VFS 빌드 아티팩트
+*.zstd
+*.dict
+wordpress/
+plugins/
+themes/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 에디터
+.vscode/settings.json
+.idea/
