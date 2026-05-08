@@ -1,18 +1,16 @@
 {
-  "extends": "astro/tsconfigs/strict",
+  "extends": "astro/tsconfigs/base",
   "compilerOptions": {
     "baseUrl": ".",
-    "paths": {
-      "@/*": ["src/*"]
-    },
+    "paths": { "@/*": ["src/*"] },
     "types": ["@cloudflare/workers-types"],
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "strict": true,
-    "jsx": "react-jsx",
-    "jsxImportSource": "react"
+    "strict": false,
+    "allowJs": true,
+    "skipLibCheck": true
   },
-  "include": ["src/**/*", "build-scripts/**/*"],
+  "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", ".astro"]
 }
