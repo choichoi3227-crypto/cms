@@ -1,0 +1,121 @@
+---
+// src/pages/admin/pages.astro
+export const prerender = false;
+import CmsLayout from '../../layouts/CmsLayout.astro';
+---
+<CmsLayout title="페이지 관리" activeMenu="pages">
+  <style>
+    .page-header { display:flex;align-items:center;justify-content:space-between;margin-bottom:20px; }
+    h2 { font-size:20px;font-weight:700;color:#fff; }
+    .btn-new { background:#2271b1;color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:13px;font-weight:700;cursor:pointer;text-decoration:none;transition:background .15s; }
+    .btn-new:hover { background:#135e96; }
+    .filter-bar { display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center; }
+    .filter-btn { background:#2c3338;border:1px solid #3c434a;border-radius:6px;padding:6px 14px;color:#c3c4c7;font-size:12px;cursor:pointer;transition:all .15s; }
+    .filter-btn.active,.filter-btn:hover { background:rgba(34,113,177,.2);border-color:#2271b1;color:#fff; }
+    .search-bar { margin-left:auto; }
+    .search-bar input { background:#2c3338;border:1px solid #3c434a;border-radius:8px;padding:7px 12px;color:#fff;font-size:13px;outline:none;width:200px;transition:border-color .15s; }
+    .search-bar input:focus { border-color:#2271b1; }
+    .pages-table { background:#2c3338;border:1px solid #3c434a;border-radius:12px;overflow:hidden; }
+    .table-head { display:grid;grid-template-columns:1fr 100px 120px 80px;padding:12px 20px;background:rgba(255,255,255,.03);border-bottom:1px solid #3c434a;font-size:11px;font-weight:700;color:#8c8f94;text-transform:uppercase;gap:16px; }
+    .table-row { display:grid;grid-template-columns:1fr 100px 120px 80px;padding:14px 20px;border-bottom:1px solid rgba(255,255,255,.04);gap:16px;align-items:center;transition:background .1s; }
+    .table-row:last-child { border-bottom:none; }
+    .table-row:hover { background:rgba(255,255,255,.02); }
+    .title-link { color:#2271b1;text-decoration:none;font-weight:600;font-size:13px; }
+    .title-link:hover { text-decoration:underline; }
+    .page-slug { font-size:11px;color:#8c8f94;margin-top:2px; }
+    .status-badge { display:inline-block;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:600; }
+    .status-publish  { background:rgba(74,222,128,.1);color:#4ade80; }
+    .status-draft    { background:rgba(148,163,184,.1);color:#94a3b8; }
+    .status-private  { background:rgba(251,191,36,.1);color:#fbbf24; }
+    .post-date { font-size:12px;color:#8c8f94; }
+    .row-actions { display:flex;gap:6px; }
+    .act-btn { padding:4px 10px;border-radius:5px;border:1px solid #3c434a;background:transparent;color:#c3c4c7;font-size:11px;cursor:pointer;transition:all .15s;text-decoration:none; }
+    .act-btn:hover { background:rgba(34,113,177,.2);border-color:#2271b1;color:#fff; }
+    .act-btn.del:hover { background:rgba(248,113,113,.1);border-color:#f87171;color:#f87171; }
+    .empty { padding:48px;text-align:center;color:#8c8f94;font-size:14px; }
+    .empty a { color:#2271b1; }
+  </style>
+
+  <div class="page-header">
+    <h2>페이지 관리</h2>
+    <a class="btn-new" href="/admin/pages/new">+ 새 페이지</a>
+  </div>
+
+  <div class="filter-bar">
+    <button class="filter-btn active" onclick="filterStatus('all',this)">전체</button>
+    <button class="filter-btn" onclick="filterStatus('publish',this)">발행됨</button>
+    <button class="filter-btn" onclick="filterStatus('draft',this)">임시저장</button>
+    <div class="search-bar">
+      <input id="search-input" type="text" placeholder="페이지 검색..." oninput="onSearch()" />
+    </div>
+  </div>
+
+  <div class="pages-table">
+    <div class="table-head">
+      <div>제목</div><div>상태</div><div>날짜</div><div>작업</div>
+    </div>
+    <div id="pages-body"><div class="empty">로딩 중...</div></div>
+  </div>
+
+  <script>
+    let currentStatus = 'all', searchTimer = null;
+    function escHtml(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+    async function loadPages() {
+      const el = document.getElementById('pages-body');
+      el.innerHTML = '<div class="empty">로딩 중...</div>';
+      const q = document.getElementById('search-input').value.trim();
+      const params = new URLSearchParams({ post_type: 'page', per_page: 50 });
+      if (currentStatus !== 'all') params.set('status', currentStatus);
+      if (q) params.set('search', q);
+      try {
+        const res  = await fetch('/api/posts?' + params);
+        const data = await res.json();
+        const pages = data.posts || [];
+        if (!pages.length) {
+          el.innerHTML = `<div class="empty">페이지가 없습니다. <a href="/admin/pages/new">새 페이지를 만들어보세요!</a></div>`;
+          return;
+        }
+        el.innerHTML = pages.map(p => {
+          const sc = p.post_status === 'publish' ? 'publish' : p.post_status === 'draft' ? 'draft' : 'private';
+          const sl = p.post_status === 'publish' ? '발행됨' : p.post_status === 'draft' ? '임시저장' : p.post_status;
+          return `<div class="table-row">
+            <div>
+              <a class="title-link" href="/admin/pages/${p.ID}/edit">${escHtml(p.post_title||'(제목 없음)')}</a>
+              <div class="page-slug">/${escHtml(p.post_name||'')}</div>
+            </div>
+            <div><span class="status-badge status-${sc}">${escHtml(sl)}</span></div>
+            <div class="post-date">${p.post_date ? new Date(p.post_date).toLocaleDateString('ko-KR') : '-'}</div>
+            <div class="row-actions">
+              <a class="act-btn" href="/admin/pages/${p.ID}/edit">편집</a>
+              <button class="act-btn del" onclick="deletePage(${p.ID},'${escHtml(p.post_title||'')}')">삭제</button>
+            </div>
+          </div>`;
+        }).join('');
+      } catch (e) {
+        el.innerHTML = `<div class="empty" style="color:#f87171;">로드 실패: ${escHtml(e.message)}</div>`;
+      }
+    }
+
+    function filterStatus(s, btn) {
+      currentStatus = s;
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      loadPages();
+    }
+    function onSearch() {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(loadPages, 400);
+    }
+    async function deletePage(id, title) {
+      if (!confirm(`"${title}" 페이지를 삭제하시겠습니까?`)) return;
+      try {
+        const res = await fetch(`/api/posts/${id}`, { method:'DELETE' });
+        if (!res.ok) throw new Error((await res.json()).error || '삭제 실패');
+        loadPages();
+      } catch (e) { alert('오류: ' + e.message); }
+    }
+
+    loadPages();
+  </script>
+</CmsLayout>
