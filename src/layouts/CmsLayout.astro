@@ -1,0 +1,435 @@
+---
+// src/layouts/CmsLayout.astro — WordPress 어드민과 동일한 레이아웃
+export interface Props {
+  title?: string;
+  activeMenu?: string;
+}
+const { title = 'CloudPress CMS', activeMenu = 'dashboard' } = Astro.props;
+
+const menu = [
+  { id: 'dashboard',  href: '/admin',            icon: '🏠', label: '대시보드', children: [] },
+  { id: 'posts',      href: '/admin/posts',       icon: '📝', label: '글', children: [
+    { href: '/admin/posts',       label: '모든 글' },
+    { href: '/admin/posts/new',   label: '새 글 쓰기' },
+    { href: '/admin/categories',  label: '카테고리' },
+    { href: '/admin/tags',        label: '태그' },
+  ]},
+  { id: 'media',      href: '/admin/media',       icon: '🖼️', label: '미디어', children: [
+    { href: '/admin/media',           label: '라이브러리' },
+    { href: '/admin/media/new',       label: '새로 추가' },
+  ]},
+  { id: 'pages',      href: '/admin/pages',       icon: '📄', label: '페이지', children: [
+    { href: '/admin/pages',       label: '모든 페이지' },
+    { href: '/admin/pages/new',   label: '새 페이지' },
+  ]},
+  { id: 'comments',   href: '/admin/comments',    icon: '💬', label: '댓글', children: [] },
+  { id: 'themes',     href: '/admin/themes',      icon: '🎨', label: '외모', children: [
+    { href: '/admin/themes',      label: '테마' },
+    { href: '/admin/customize',   label: '커스터마이즈' },
+    { href: '/admin/widgets',     label: '위젯' },
+    { href: '/admin/menus',       label: '메뉴' },
+  ]},
+  { id: 'plugins',    href: '/admin/plugins',     icon: '🔌', label: '플러그인', children: [
+    { href: '/admin/plugins',           label: '설치된 플러그인' },
+    { href: '/admin/plugins?tab=search','label': '새 플러그인 추가' },
+  ]},
+  { id: 'users',      href: '/admin/users',       icon: '👤', label: '사용자', children: [
+    { href: '/admin/users',       label: '모든 사용자' },
+    { href: '/admin/users/new',   label: '새 사용자' },
+    { href: '/admin/profile',     label: '내 프로필' },
+  ]},
+  { id: 'tools',      href: '/admin/tools',       icon: '🔧', label: '도구', children: [
+    { href: '/admin/tools',           label: '사용 가능한 도구' },
+    { href: '/admin/tools/import',    label: '가져오기' },
+    { href: '/admin/tools/export',    label: '내보내기' },
+  ]},
+  { id: 'settings',   href: '/admin/settings',    icon: '⚙️', label: '설정', children: [
+    { href: '/admin/settings',          label: '일반' },
+    { href: '/admin/settings?tab=reading',   label: '읽기' },
+    { href: '/admin/settings?tab=writing',   label: '쓰기' },
+    { href: '/admin/settings?tab=discussion','label': '토론' },
+    { href: '/admin/settings?tab=permalinks','label': '고유주소' },
+  ]},
+];
+---
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{title} ‹ CloudPress CMS — WordPress</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --wp-admin-bg:     #1d2327;
+      --wp-admin-menu:   #2c3338;
+      --wp-admin-border: #3c434a;
+      --wp-admin-blue:   #2271b1;
+      --wp-admin-blue-h: #135e96;
+      --wp-admin-text:   #c3c4c7;
+      --wp-admin-text-hi:#ffffff;
+      --wp-sidebar-w:    160px;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, sans-serif;
+      background: var(--wp-admin-bg);
+      color: var(--wp-admin-text);
+      min-height: 100vh;
+    }
+
+    /* ── WordPress 어드민 툴바 (상단바) ────────────────────────── */
+    #wpadminbar {
+      position: fixed; top: 0; left: 0; right: 0; height: 32px;
+      background: #1d2327; border-bottom: 1px solid #3c434a;
+      display: flex; align-items: center; z-index: 9999;
+      padding: 0 8px; gap: 0;
+    }
+    .adminbar-logo {
+      display: flex; align-items: center; gap: 6px;
+      padding: 0 8px; height: 32px;
+      color: #fff; font-size: 12px; font-weight: 700;
+      text-decoration: none; border-right: 1px solid #3c434a;
+      white-space: nowrap;
+    }
+    .adminbar-logo span { color: #2271b1; }
+    .adminbar-item {
+      display: flex; align-items: center; height: 32px;
+      padding: 0 10px; font-size: 12px; color: #c3c4c7;
+      text-decoration: none; transition: background .15s, color .15s;
+      white-space: nowrap; cursor: pointer; border: none; background: transparent;
+    }
+    .adminbar-item:hover { background: rgba(255,255,255,.06); color: #fff; }
+    .adminbar-right { margin-left: auto; display: flex; align-items: center; gap: 0; }
+    .adminbar-user { font-size: 12px; color: #8c8f94; padding: 0 10px; }
+    .adminbar-greeting { font-size: 11px; color: #8c8f94; }
+
+    /* ── 사이드바 (WordPress 어드민 메뉴) ──────────────────────── */
+    #adminmenuwrap {
+      position: fixed; top: 32px; left: 0; bottom: 0;
+      width: var(--wp-sidebar-w);
+      background: var(--wp-admin-menu);
+      border-right: 1px solid var(--wp-admin-border);
+      overflow-y: auto; overflow-x: hidden;
+      z-index: 100;
+      scrollbar-width: thin;
+      scrollbar-color: #3c434a transparent;
+    }
+    #adminmenuwrap::-webkit-scrollbar { width: 4px; }
+    #adminmenuwrap::-webkit-scrollbar-thumb { background: #3c434a; border-radius: 2px; }
+
+    #adminmenu { list-style: none; padding: 0; margin: 0; }
+    #adminmenu .wp-menu-separator {
+      height: 1px; background: rgba(255,255,255,.05);
+      margin: 6px 0; padding: 0;
+    }
+
+    /* 메뉴 아이템 */
+    #adminmenu > li > a {
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px 10px 7px 12px;
+      color: #eee; text-decoration: none; font-size: 13px;
+      transition: background .1s, color .1s;
+      position: relative;
+      border-left: 3px solid transparent;
+    }
+    #adminmenu > li > a:hover { background: rgba(255,255,255,.06); color: #fff; }
+    #adminmenu > li.current > a,
+    #adminmenu > li.wp-has-current-submenu > a {
+      background: var(--wp-admin-blue); color: #fff;
+      border-left-color: #72aee6;
+    }
+    #adminmenu > li > a .menu-icon { font-size: 14px; width: 18px; text-align: center; flex-shrink: 0; }
+    #adminmenu > li > a .menu-label { flex: 1; }
+    #adminmenu > li > a .submenu-arrow {
+      font-size: 9px; color: rgba(255,255,255,.4);
+      transition: transform .2s;
+    }
+    #adminmenu > li.open > a .submenu-arrow { transform: rotate(90deg); }
+
+    /* 서브메뉴 */
+    #adminmenu .wp-submenu {
+      display: none; list-style: none; padding: 4px 0;
+      background: rgba(0,0,0,.2);
+    }
+    #adminmenu li.open .wp-submenu { display: block; }
+    #adminmenu .wp-submenu a {
+      display: block; padding: 5px 10px 5px 38px;
+      color: #c3c4c7; text-decoration: none; font-size: 12px;
+      transition: background .1s, color .1s;
+    }
+    #adminmenu .wp-submenu a:hover { background: rgba(255,255,255,.05); color: #fff; }
+    #adminmenu .wp-submenu li.current a { color: #72aee6; }
+
+    /* 접기 버튼 */
+    #collapse-menu {
+      position: sticky; bottom: 0;
+      padding: 10px 12px; border-top: 1px solid #3c434a;
+      background: var(--wp-admin-menu);
+      cursor: pointer; font-size: 11px; color: #8c8f94;
+      display: flex; align-items: center; gap: 6px;
+      transition: color .15s;
+    }
+    #collapse-menu:hover { color: #fff; }
+
+    /* ── 메인 콘텐츠 영역 ──────────────────────────────────────── */
+    #wpcontent {
+      margin-top: 32px;
+      margin-left: var(--wp-sidebar-w);
+      min-height: calc(100vh - 32px);
+      display: flex; flex-direction: column;
+    }
+    #wpbody { flex: 1; padding: 20px 20px 20px 20px; }
+    #wpbody-content { max-width: 1200px; }
+
+    /* WordPress 어드민 헤더 타이틀 */
+    .wp-heading-inline {
+      display: inline-block; font-size: 23px; font-weight: 400;
+      color: var(--wp-admin-text-hi); margin: 0 8px 0 0; line-height: 1.3;
+    }
+    .page-title-action {
+      display: inline-block; padding: 4px 10px;
+      border: 1px solid var(--wp-admin-blue); border-radius: 2px;
+      font-size: 13px; color: var(--wp-admin-blue);
+      text-decoration: none; transition: all .15s;
+      margin-left: 4px; vertical-align: middle;
+    }
+    .page-title-action:hover { background: var(--wp-admin-blue); color: #fff; }
+
+    /* 알림 박스 (WordPress 스타일) */
+    .notice {
+      background: #2c3338; border-left: 4px solid var(--wp-admin-blue);
+      padding: 12px 16px; margin: 0 0 16px 0; font-size: 13px;
+      border-radius: 0 4px 4px 0;
+    }
+    .notice-success { border-left-color: #00a32a; }
+    .notice-error   { border-left-color: #d63638; }
+    .notice-warning { border-left-color: #dba617; }
+
+    /* 푸터 */
+    #wpfooter {
+      padding: 12px 20px; border-top: 1px solid var(--wp-admin-border);
+      font-size: 12px; color: #8c8f94; text-align: center;
+    }
+
+    /* ── 플러그인 사이드바 패널 (플러그인 요구) ───────────────── */
+    /* 메타박스 시스템 */
+    .meta-box-sortables { display: flex; flex-direction: column; gap: 12px; }
+    .postbox {
+      background: #2c3338; border: 1px solid #3c434a; border-radius: 4px; overflow: hidden;
+    }
+    .postbox .postbox-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 14px; border-bottom: 1px solid #3c434a; cursor: pointer;
+    }
+    .postbox .postbox-header h2 { font-size: 13px; font-weight: 700; color: #fff; }
+    .postbox .inside { padding: 12px 14px; }
+    .postbox.closed .inside { display: none; }
+    .postbox .handlediv { background: none; border: none; color: #8c8f94; cursor: pointer; font-size: 12px; }
+
+    /* ── 모바일 ─────────────────────────────────────────────────── */
+    @media (max-width: 782px) {
+      :root { --wp-sidebar-w: 0px; }
+      #adminmenuwrap { transform: translateX(-160px); transition: transform .25s; width: 160px; }
+      #adminmenuwrap.open { transform: translateX(0); }
+      #wpcontent { margin-left: 0; }
+      .mobile-menu-toggle {
+        display: flex !important; background: none; border: none;
+        color: #c3c4c7; font-size: 18px; cursor: pointer; padding: 0 8px;
+      }
+    }
+    .mobile-menu-toggle { display: none; }
+    .mobile-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 99; }
+    .mobile-overlay.show { display: block; }
+  </style>
+</head>
+<body class="wp-admin">
+
+  <!-- WordPress 어드민 툴바 -->
+  <div id="wpadminbar">
+    <button class="mobile-menu-toggle" onclick="toggleMobileMenu()">☰</button>
+    <a class="adminbar-logo" href="/admin">
+      Cloud<span>Press</span>
+    </a>
+    <a class="adminbar-item" href="/" target="_blank" title="사이트 보기">🏠 사이트 보기</a>
+    <a class="adminbar-item" href="/admin/posts/new">+ 새 글</a>
+    <a class="adminbar-item" href="/admin/comments" id="adminbar-comments">💬 댓글 <span id="pending-count" style="display:none;background:#d63638;color:#fff;border-radius:10px;padding:0 5px;font-size:10px;margin-left:3px;"></span></a>
+    <div class="adminbar-right">
+      <span class="adminbar-greeting">안녕하세요, <strong id="adminbar-username" style="color:#fff;"></strong>님</span>
+      <button class="adminbar-item" onclick="logout()" style="border-left:1px solid #3c434a;">로그아웃</button>
+    </div>
+  </div>
+
+  <div class="mobile-overlay" id="mobile-overlay" onclick="closeMobileMenu()"></div>
+
+  <!-- WordPress 어드민 사이드바 -->
+  <div id="adminmenuwrap">
+    <ul id="adminmenu">
+      {menu.map(item => (
+        <li class={activeMenu === item.id ? (item.children.length ? 'wp-has-current-submenu open' : 'current') : ''} 
+            id={`menu-${item.id}`}>
+          <a href={item.children.length ? '#' : item.href}
+             onclick={item.children.length ? `toggleSubmenu('menu-${item.id}',event)` : ''}>
+            <span class="menu-icon">{item.icon}</span>
+            <span class="menu-label">{item.label}</span>
+            {item.children.length > 0 && <span class="submenu-arrow">▶</span>}
+          </a>
+          {item.children.length > 0 && (
+            <ul class="wp-submenu">
+              <li class="wp-submenu-head">{item.label}</li>
+              {item.children.map(child => (
+                <li class={typeof window !== 'undefined' && location.pathname === child.href ? 'current' : ''}>
+                  <a href={child.href}>{child.label}</a>
+                </li>
+              ))}
+            </ul>
+          )}
+        </li>
+      ))}
+      <li class="wp-menu-separator"></li>
+    </ul>
+    <div id="collapse-menu" onclick="toggleSidebar()">
+      <span>◀</span> <span id="collapse-label">접기</span>
+    </div>
+  </div>
+
+  <!-- 메인 콘텐츠 -->
+  <div id="wpcontent">
+    <div id="wpbody">
+      <div id="wpbody-content">
+        <slot />
+      </div>
+    </div>
+    <div id="wpfooter">
+      <span>CloudPress CMS에 감사드립니다.</span> &nbsp;|&nbsp;
+      <span>버전 6.7 (WordPress 호환)</span>
+    </div>
+  </div>
+
+  <!-- 플러그인 훅을 위한 전역 스크립트 영역 -->
+  <div id="plugin-scripts"></div>
+
+  <script>
+    // ── 세션 확인 ───────────────────────────────────────────────────────
+    async function checkAdminSession() {
+      try {
+        const res  = await fetch('/api/auth/me');
+        const data = await res.json();
+        if (!res.ok || !data.user) { window.location.href = '/login'; return; }
+        document.getElementById('adminbar-username').textContent = data.user.display_name || data.user.user_login || '';
+      } catch { window.location.href = '/login'; }
+    }
+
+    async function logout() {
+      await fetch('/api/auth/logout', { method:'POST' }).catch(()=>{});
+      window.location.href = '/login';
+    }
+
+    // ── 대기 중인 댓글 수 표시 ─────────────────────────────────────────
+    async function loadPendingComments() {
+      try {
+        const res  = await fetch('/api/comments?status=0&per_page=1');
+        const data = await res.json();
+        const cnt  = data.total_pending || 0;
+        if (cnt > 0) {
+          const badge = document.getElementById('pending-count');
+          badge.textContent = cnt;
+          badge.style.display = 'inline';
+        }
+      } catch {}
+    }
+
+    // ── 서브메뉴 토글 ──────────────────────────────────────────────────
+    function toggleSubmenu(id, event) {
+      event.preventDefault();
+      const li = document.getElementById(id);
+      li.classList.toggle('open');
+    }
+
+    // ── 사이드바 접기 ──────────────────────────────────────────────────
+    let sidebarCollapsed = localStorage.getItem('cp_sidebar_collapsed') === '1';
+    function toggleSidebar() {
+      sidebarCollapsed = !sidebarCollapsed;
+      localStorage.setItem('cp_sidebar_collapsed', sidebarCollapsed ? '1' : '0');
+      applySidebarState();
+    }
+    function applySidebarState() {
+      const sidebar = document.getElementById('adminmenuwrap');
+      const content = document.getElementById('wpcontent');
+      const label   = document.getElementById('collapse-label');
+      if (sidebarCollapsed) {
+        document.documentElement.style.setProperty('--wp-sidebar-w', '36px');
+        sidebar.style.overflow = 'hidden';
+        label.textContent = '펼치기';
+        document.querySelector('#collapse-menu span').textContent = '▶';
+        document.querySelectorAll('#adminmenu .menu-label, #adminmenu .submenu-arrow, .wp-submenu').forEach(el => {
+          el.style.display = 'none';
+        });
+      } else {
+        document.documentElement.style.setProperty('--wp-sidebar-w', '160px');
+        sidebar.style.overflow = '';
+        label.textContent = '접기';
+        document.querySelector('#collapse-menu span').textContent = '◀';
+        document.querySelectorAll('#adminmenu .menu-label, #adminmenu .submenu-arrow').forEach(el => {
+          el.style.display = '';
+        });
+      }
+    }
+
+    // ── 모바일 사이드바 ────────────────────────────────────────────────
+    function toggleMobileMenu() {
+      document.getElementById('adminmenuwrap').classList.toggle('open');
+      document.getElementById('mobile-overlay').classList.toggle('show');
+    }
+    function closeMobileMenu() {
+      document.getElementById('adminmenuwrap').classList.remove('open');
+      document.getElementById('mobile-overlay').classList.remove('show');
+    }
+
+    // ── 현재 메뉴 자동 열기 ────────────────────────────────────────────
+    function autoOpenCurrentMenu() {
+      const path = location.pathname;
+      document.querySelectorAll('#adminmenu > li').forEach(li => {
+        const links = li.querySelectorAll('a');
+        links.forEach(a => {
+          if (a.getAttribute('href') === path) {
+            li.classList.add('open');
+          }
+        });
+      });
+    }
+
+    // ── 메타박스 접기/펼치기 ────────────────────────────────────────────
+    document.addEventListener('click', (e) => {
+      const header = e.target.closest('.postbox-header');
+      if (header) {
+        header.closest('.postbox').classList.toggle('closed');
+      }
+    });
+
+    // ── WordPress Admin Color Scheme 적용 ───────────────────────────────
+    // 플러그인이 add_menu_page() 등으로 추가한 메뉴를 동적으로 로드
+    async function loadPluginMenus() {
+      try {
+        const res  = await fetch('/api/plugin-menus');
+        const data = await res.json();
+        if (!data.menus || !data.menus.length) return;
+        const ul = document.getElementById('adminmenu');
+        data.menus.forEach(m => {
+          const li = document.createElement('li');
+          li.innerHTML = `<a href="${m.url}"><span class="menu-icon">${m.icon||'🔌'}</span><span class="menu-label">${m.title}</span></a>`;
+          ul.appendChild(li);
+        });
+      } catch {}
+    }
+
+    // 초기화
+    checkAdminSession();
+    loadPendingComments();
+    autoOpenCurrentMenu();
+    if (sidebarCollapsed) applySidebarState();
+
+    // 플러그인 메뉴 로드 (실패해도 계속)
+    loadPluginMenus().catch(() => {});
+  </script>
+</body>
+</html>
