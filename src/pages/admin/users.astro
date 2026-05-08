@@ -1,0 +1,173 @@
+---
+// src/pages/admin/users.astro
+export const prerender = false;
+import CmsLayout from '../../layouts/CmsLayout.astro';
+---
+<CmsLayout title="사용자" activeMenu="users">
+  <style>
+    h2{font-size:20px;font-weight:700;color:#fff;margin-bottom:20px;}
+    .page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
+    .btn{border-radius:4px;padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer;border:1px solid;transition:all .15s;text-decoration:none;display:inline-block;}
+    .btn-primary{background:#2271b1;color:#fff;border-color:#2271b1;}
+    .btn-primary:hover{background:#135e96;}
+    .alert{padding:10px 14px;border-radius:4px;font-size:13px;margin-bottom:16px;display:none;}
+    .alert.ok{background:#1a3020;border:1px solid #208b45;color:#4ade80;display:block;}
+    .alert.error{background:#3b1f1f;border:1px solid #8b2020;color:#f87171;display:block;}
+    .users-table{background:#2c3338;border:1px solid #3c434a;border-radius:4px;overflow:hidden;width:100%;border-collapse:collapse;}
+    .users-table thead th{padding:9px 10px;text-align:left;font-size:11px;font-weight:700;color:#8c8f94;background:rgba(255,255,255,.03);border-bottom:1px solid #3c434a;text-transform:uppercase;letter-spacing:.5px;}
+    .users-table tbody tr{border-bottom:1px solid rgba(255,255,255,.04);transition:background .1s;}
+    .users-table tbody tr:last-child{border-bottom:none;}
+    .users-table tbody tr:hover{background:rgba(255,255,255,.02);}
+    .users-table td{padding:10px;font-size:13px;color:#c3c4c7;vertical-align:middle;}
+    .user-name{font-weight:700;color:#fff;}
+    .user-login{font-size:11px;color:#8c8f94;margin-top:2px;}
+    .role-badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:rgba(34,113,177,.15);color:#2271b1;}
+    .row-actions{display:flex;gap:8px;margin-top:6px;}
+    .row-actions button,.row-actions a{font-size:12px;color:#2271b1;background:none;border:none;cursor:pointer;padding:0;text-decoration:none;}
+    .row-actions .del{color:#f87171;}
+    .row-actions .sep{color:#3c434a;}
+
+    /* 사용자 추가 모달 */
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:999;display:none;align-items:center;justify-content:center;}
+    .modal-overlay.open{display:flex;}
+    .modal{background:#2c3338;border:1px solid #3c434a;border-radius:12px;padding:28px;width:100%;max-width:480px;}
+    .modal h3{font-size:16px;font-weight:700;color:#fff;margin-bottom:20px;}
+    .form-field{margin-bottom:14px;}
+    .form-field label{display:block;font-size:12px;color:#8c8f94;font-weight:700;margin-bottom:5px;}
+    .form-field input,.form-field select{width:100%;background:#1d2327;border:1px solid #3c434a;border-radius:6px;padding:9px 12px;color:#fff;font-size:13px;outline:none;transition:border-color .15s;}
+    .form-field input:focus,.form-field select:focus{border-color:#2271b1;}
+    .modal-actions{display:flex;gap:10px;margin-top:20px;}
+    .btn-cancel{background:transparent;border:1px solid #3c434a;color:#c3c4c7;}
+    .btn-cancel:hover{border-color:#2271b1;color:#fff;}
+  </style>
+
+  <div class="page-header">
+    <h2>사용자</h2>
+    <button class="btn btn-primary" onclick="openAddModal()">+ 새 사용자 추가</button>
+  </div>
+
+  <div id="users-alert" class="alert"></div>
+
+  <table class="users-table">
+    <thead>
+      <tr>
+        <th>사용자 이름</th>
+        <th>이메일</th>
+        <th>역할</th>
+        <th>게시글</th>
+        <th>가입일</th>
+      </tr>
+    </thead>
+    <tbody id="users-tbody">
+      <tr><td colspan="5" style="padding:24px;text-align:center;color:#8c8f94;">로딩 중...</td></tr>
+    </tbody>
+  </table>
+
+  <!-- 사용자 추가 모달 -->
+  <div class="modal-overlay" id="add-modal" onclick="if(event.target===this)closeModal()">
+    <div class="modal">
+      <h3>새 사용자 추가</h3>
+      <div id="modal-alert" class="alert"></div>
+      <div class="form-field"><label>사용자 이름 *</label><input id="new-login" type="text" placeholder="영문, 숫자, - _ ." /></div>
+      <div class="form-field"><label>이메일 *</label><input id="new-email" type="email" placeholder="user@example.com" /></div>
+      <div class="form-field"><label>표시 이름</label><input id="new-name" type="text" placeholder="표시할 이름" /></div>
+      <div class="form-field"><label>비밀번호 *</label><input id="new-pass" type="password" placeholder="8자 이상" /></div>
+      <div class="form-field">
+        <label>역할</label>
+        <select id="new-role">
+          <option value="administrator">관리자</option>
+          <option value="editor">편집자</option>
+          <option value="author">글쓴이</option>
+          <option value="contributor">기여자</option>
+          <option value="subscriber" selected>구독자</option>
+        </select>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" onclick="addUser()">사용자 추가</button>
+        <button class="btn btn-cancel" onclick="closeModal()">취소</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function escHtml(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+    const ROLES = {administrator:'관리자',editor:'편집자',author:'글쓴이',contributor:'기여자',subscriber:'구독자'};
+
+    async function loadUsers() {
+      const tb = document.getElementById('users-tbody');
+      try {
+        const res  = await fetch('/api/users');
+        const data = await res.json();
+        const users = data.users || [];
+        if (!users.length) {
+          tb.innerHTML = '<tr><td colspan="5" style="padding:24px;text-align:center;color:#8c8f94;">사용자가 없습니다.</td></tr>';
+          return;
+        }
+        tb.innerHTML = users.map(u => `
+          <tr>
+            <td>
+              <div class="user-name">${escHtml(u.display_name||u.user_login)}</div>
+              <div class="user-login">${escHtml(u.user_login)}</div>
+              <div class="row-actions">
+                <button onclick="editUser(${u.ID})">편집</button>
+                <span class="sep">|</span>
+                <button class="del" onclick="deleteUser(${u.ID},'${escHtml(u.user_login)}')">삭제</button>
+              </div>
+            </td>
+            <td>${escHtml(u.user_email)}</td>
+            <td><span class="role-badge">${escHtml(ROLES[u.role]||u.role||'구독자')}</span></td>
+            <td style="color:#8c8f94;">${u.post_count||0}</td>
+            <td style="font-size:12px;color:#8c8f94;">${u.user_registered?new Date(u.user_registered).toLocaleDateString('ko-KR'):'-'}</td>
+          </tr>
+        `).join('');
+      } catch (e) {
+        tb.innerHTML = `<tr><td colspan="5" style="padding:24px;text-align:center;color:#f87171;">로드 실패: ${escHtml(e.message)}</td></tr>`;
+      }
+    }
+
+    function openAddModal() { document.getElementById('add-modal').classList.add('open'); }
+    function closeModal()   { document.getElementById('add-modal').classList.remove('open'); document.getElementById('modal-alert').className='alert'; }
+
+    async function addUser() {
+      const alertEl = document.getElementById('modal-alert');
+      alertEl.className = 'alert';
+      const login = document.getElementById('new-login').value.trim();
+      const email = document.getElementById('new-email').value.trim();
+      const pass  = document.getElementById('new-pass').value;
+      if (!login||!email||!pass) { alertEl.className='alert error'; alertEl.textContent='필수 항목을 입력해주세요.'; return; }
+      if (pass.length < 8) { alertEl.className='alert error'; alertEl.textContent='비밀번호는 8자 이상이어야 합니다.'; return; }
+      try {
+        const res = await fetch('/api/users', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ user_login:login, user_email:email, display_name:document.getElementById('new-name').value.trim()||login, user_pass:pass, role:document.getElementById('new-role').value }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error||'추가 실패');
+        closeModal();
+        document.getElementById('users-alert').className='alert ok';
+        document.getElementById('users-alert').textContent='✅ 사용자가 추가되었습니다.';
+        setTimeout(()=>{document.getElementById('users-alert').className='alert';},3000);
+        await loadUsers();
+        ['new-login','new-email','new-name','new-pass'].forEach(id=>{document.getElementById(id).value='';});
+      } catch (e) { alertEl.className='alert error'; alertEl.textContent=e.message; }
+    }
+
+    async function deleteUser(id, login) {
+      if (!confirm(`"${login}" 사용자를 삭제하시겠습니까?`)) return;
+      const alertEl = document.getElementById('users-alert');
+      alertEl.className = 'alert';
+      try {
+        const res = await fetch(`/api/users/${id}`,{method:'DELETE'});
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error||'삭제 실패');
+        alertEl.className='alert ok'; alertEl.textContent='✅ 삭제되었습니다.';
+        setTimeout(()=>{alertEl.className='alert';},3000);
+        await loadUsers();
+      } catch (e) { alertEl.className='alert error'; alertEl.textContent=e.message; }
+    }
+
+    function editUser(id) { window.location.href = `/admin/users/${id}/edit`; }
+
+    loadUsers();
+  </script>
+</CmsLayout>
