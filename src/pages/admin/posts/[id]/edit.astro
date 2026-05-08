@@ -1,0 +1,244 @@
+---
+// src/pages/admin/posts/[id]/edit.astro
+export const prerender = false;
+import CmsLayout from '../../../../layouts/CmsLayout.astro';
+const { id } = Astro.params;
+const savedMsg = Astro.url.searchParams.get('saved') === '1';
+---
+<CmsLayout title="글 편집" activeMenu="posts">
+  <style>
+    /* new.astro와 동일한 스타일 재사용 */
+    .editor-wrap { display: grid; grid-template-columns: 1fr 280px; gap: 20px; align-items: start; }
+    .editor-main,.editor-sidebar { display: flex; flex-direction: column; gap: 16px; }
+    .card { background: #2c3338; border: 1px solid #3c434a; border-radius: 12px; padding: 20px; }
+    .card-title { font-size: 13px; font-weight: 700; color: #8c8f94; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 14px; }
+    .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+    h2 { font-size: 20px; font-weight: 700; color: #fff; }
+    .header-actions { display: flex; gap: 8px; align-items: center; }
+    .btn { border-radius: 8px; padding: 9px 18px; font-size: 13px; font-weight: 700; cursor: pointer; border: none; transition: background .15s; }
+    .btn-draft   { background: #3c434a; color: #c3c4c7; }
+    .btn-draft:hover { background: #4a545e; }
+    .btn-publish { background: #2271b1; color: #fff; }
+    .btn-publish:hover { background: #135e96; }
+    .btn-del { background: transparent; border: 1px solid #8b2020; color: #f87171; }
+    .btn-del:hover { background: rgba(248,113,113,.1); }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    input[type="text"],textarea,select { width:100%;background:#1d2327;border:1px solid #3c434a;border-radius:8px;padding:10px 14px;color:#fff;font-size:14px;outline:none;transition:border-color .2s;font-family:inherit; }
+    input:focus,textarea:focus,select:focus { border-color:#2271b1; }
+    #post-title { font-size:22px;font-weight:700;padding:14px 16px; }
+    .toolbar { display:flex;flex-wrap:wrap;gap:4px;padding:10px 12px;background:#1d2327;border:1px solid #3c434a;border-radius:8px 8px 0 0;border-bottom:none; }
+    .tb-btn { background:transparent;border:1px solid transparent;border-radius:5px;color:#c3c4c7;padding:5px 8px;font-size:13px;cursor:pointer;transition:all .15s;font-weight:600;min-width:28px; }
+    .tb-btn:hover { background:rgba(255,255,255,.08);border-color:#3c434a;color:#fff; }
+    .tb-sep { width:1px;background:#3c434a;margin:4px 2px;align-self:stretch; }
+    #post-content { border-radius:0 0 8px 8px;resize:vertical;min-height:380px;font-family:'Consolas','Monaco',monospace;font-size:14px;line-height:1.7; }
+    #preview-pane { display:none;background:#1d2327;border:1px solid #3c434a;border-radius:0 8px 8px 8px;padding:20px;min-height:400px;color:#c3c4c7;line-height:1.8;font-size:14px; }
+    #preview-pane h1,#preview-pane h2,#preview-pane h3 { color:#fff;margin:16px 0 8px; }
+    #preview-pane p { margin-bottom:12px; }
+    #preview-pane a { color:#2271b1; }
+    #preview-pane code { background:#2c3338;padding:2px 6px;border-radius:4px;font-family:monospace; }
+    .tab-bar { display:flex;gap:2px; }
+    .tab { padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer;border-radius:7px 7px 0 0;border:1px solid transparent;color:#8c8f94;background:transparent;transition:all .15s; }
+    .tab.active { background:#1d2327;border-color:#3c434a #3c434a #1d2327;color:#fff; }
+    label { display:block;font-size:12px;color:#8c8f94;font-weight:600;margin-bottom:6px; }
+    .alert { padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:12px;display:none; }
+    .alert.ok    { background:#1a3020;border:1px solid #208b45;color:#4ade80;display:block; }
+    .alert.error { background:#3b1f1f;border:1px solid #8b2020;color:#f87171;display:block; }
+    .autosave-hint { font-size:11px;color:#4a545e;text-align:right;margin-top:4px; }
+    .skeleton { background:linear-gradient(90deg,#2c3338 25%,#3c434a 50%,#2c3338 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:6px;height:20px; }
+    @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+    @media(max-width:768px) { .editor-wrap { grid-template-columns:1fr; } }
+  </style>
+
+  <div class="page-header">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <a href="/admin/posts" style="color:#8c8f94;text-decoration:none;font-size:13px;">← 글 목록</a>
+      <h2 id="page-title">글 편집</h2>
+    </div>
+    <div class="header-actions">
+      <a id="view-link" href="#" target="_blank" style="font-size:12px;color:#8c8f94;text-decoration:none;display:none;">🔗 보기</a>
+      <button class="btn btn-del"     onclick="deletePost()">삭제</button>
+      <button class="btn btn-draft"   id="btn-draft"   onclick="savePost('draft')">임시저장</button>
+      <button class="btn btn-publish" id="btn-publish" onclick="savePost('publish')">업데이트</button>
+    </div>
+  </div>
+
+  <div id="alert" class="alert" style={savedMsg ? 'background:#1a3020;border:1px solid #208b45;color:#4ade80;display:block;' : ''}>
+    {savedMsg ? '✅ 저장되었습니다.' : ''}
+  </div>
+
+  <div class="editor-wrap">
+    <div class="editor-main">
+      <input id="post-title" type="text" placeholder="제목을 입력하세요" />
+      <div>
+        <div class="tab-bar">
+          <button class="tab active" onclick="switchTab('edit',this)">편집</button>
+          <button class="tab" onclick="switchTab('preview',this)">미리보기</button>
+        </div>
+        <div class="toolbar" id="toolbar">
+          <button class="tb-btn" onclick="fmt('bold')"><b>B</b></button>
+          <button class="tb-btn" onclick="fmt('italic')"><i>I</i></button>
+          <button class="tb-btn" onclick="fmtLink()">🔗</button>
+          <div class="tb-sep"></div>
+          <button class="tb-btn" onclick="fmtHeading(2)">H2</button>
+          <button class="tb-btn" onclick="fmtHeading(3)">H3</button>
+          <div class="tb-sep"></div>
+          <button class="tb-btn" onclick="fmtList('ul')">• 목록</button>
+          <button class="tb-btn" onclick="fmtList('ol')">1. 목록</button>
+          <div class="tb-sep"></div>
+          <button class="tb-btn" onclick="fmtBlock('blockquote')">❝</button>
+          <button class="tb-btn" onclick="fmtBlock('code')">&#60;/&#62;</button>
+        </div>
+        <textarea id="post-content" placeholder="내용을 입력하세요..."></textarea>
+        <div id="preview-pane"></div>
+        <div class="autosave-hint" id="autosave-hint"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">발췌문</div>
+        <textarea id="post-excerpt" rows="3" placeholder="글의 요약 (선택 사항)"></textarea>
+      </div>
+    </div>
+
+    <div class="editor-sidebar">
+      <div class="card">
+        <div class="card-title">발행 설정</div>
+        <div style="margin-bottom:12px;">
+          <label>상태</label>
+          <select id="post-status">
+            <option value="draft">임시저장</option>
+            <option value="publish">발행됨</option>
+            <option value="private">비공개</option>
+          </select>
+        </div>
+        <div style="margin-bottom:12px;">
+          <label>URL 슬러그</label>
+          <input id="post-slug" type="text" placeholder="자동 생성" />
+        </div>
+        <div>
+          <label>작성일</label>
+          <input id="post-date" type="text" placeholder="YYYY-MM-DD" />
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">카테고리</div>
+        <div id="categories-list" style="font-size:13px;color:#8c8f94;">로딩 중...</div>
+      </div>
+      <div class="card">
+        <div class="card-title">태그</div>
+        <input id="post-tags" type="text" placeholder="태그 입력, 쉼표로 구분" />
+      </div>
+      <div class="card">
+        <div class="card-title">대표 이미지</div>
+        <div id="feat-img-preview" style="display:none;margin-bottom:10px;">
+          <img id="feat-img" src="" style="width:100%;border-radius:8px;object-fit:cover;max-height:160px;" />
+        </div>
+        <input id="feat-img-url" type="text" placeholder="이미지 URL" oninput="previewFeatImg(this.value)" />
+      </div>
+    </div>
+  </div>
+
+  <script define:vars={{ postId: id }}>
+    let autosaveTimer = null;
+    const hint = document.getElementById('autosave-hint');
+
+    // ── 글 로드 ──────────────────────────────────────────────────────────
+    async function loadPost() {
+      try {
+        const res  = await fetch(`/api/posts/${postId}`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || '로드 실패');
+        const p = data.post;
+        document.getElementById('post-title').value   = p.post_title   || '';
+        document.getElementById('post-content').value = p.post_content || '';
+        document.getElementById('post-excerpt').value = p.post_excerpt || '';
+        document.getElementById('post-slug').value    = p.post_name    || '';
+        document.getElementById('post-date').value    = p.post_date ? p.post_date.slice(0,10) : '';
+        document.getElementById('post-status').value  = p.post_status  || 'draft';
+        document.getElementById('page-title').textContent = p.post_title || '글 편집';
+        if (p._thumbnail_url) {
+          document.getElementById('feat-img-url').value = p._thumbnail_url;
+          previewFeatImg(p._thumbnail_url);
+        }
+        if (p.post_status === 'publish' && p.post_name) {
+          const link = document.getElementById('view-link');
+          link.href = '/' + p.post_name;
+          link.style.display = 'inline';
+        }
+      } catch (e) {
+        document.getElementById('alert').className = 'alert error';
+        document.getElementById('alert').textContent = '글 로드 실패: ' + e.message;
+      }
+    }
+
+    // ── 저장 ─────────────────────────────────────────────────────────────
+    async function savePost(status, isAuto = false) {
+      const alertEl = document.getElementById('alert');
+      alertEl.className = 'alert';
+      ['btn-draft','btn-publish'].forEach(id => { document.getElementById(id).disabled = true; });
+      try {
+        const payload = {
+          post_title:    document.getElementById('post-title').value.trim(),
+          post_content:  document.getElementById('post-content').value,
+          post_excerpt:  document.getElementById('post-excerpt').value,
+          post_status:   status,
+          post_name:     document.getElementById('post-slug').value || undefined,
+          post_date:     document.getElementById('post-date').value || undefined,
+          tags_input:    document.getElementById('post-tags').value,
+          _thumbnail_url: document.getElementById('feat-img-url').value || undefined,
+        };
+        const res  = await fetch(`/api/posts/${postId}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || '저장 실패');
+        if (!isAuto) {
+          alertEl.className = 'alert ok';
+          alertEl.textContent = '✅ 저장되었습니다.';
+          setTimeout(() => { alertEl.className = 'alert'; }, 3000);
+        } else {
+          hint.textContent = `자동저장: ${new Date().toLocaleTimeString('ko-KR')}`;
+        }
+      } catch (e) {
+        alertEl.className = 'alert error';
+        alertEl.textContent = e.message;
+      } finally {
+        ['btn-draft','btn-publish'].forEach(id => { document.getElementById(id).disabled = false; });
+      }
+    }
+
+    // ── 삭제 ─────────────────────────────────────────────────────────────
+    async function deletePost() {
+      if (!confirm('이 글을 삭제하시겠습니까?')) return;
+      try {
+        const res = await fetch(`/api/posts/${postId}`, { method:'DELETE' });
+        if (!res.ok) throw new Error((await res.json()).error || '삭제 실패');
+        window.location.href = '/admin/posts';
+      } catch (e) { alert('삭제 오류: ' + e.message); }
+    }
+
+    // ── 포매팅 ───────────────────────────────────────────────────────────
+    function fmt(type) { const ta=document.getElementById('post-content'),s=ta.selectionStart,e=ta.selectionEnd,sel=ta.value.slice(s,e),w={bold:'**',italic:'*'}[type];ta.setRangeText(sel?`${w}${sel}${w}`:`${w}텍스트${w}`,s,e,'end');ta.focus(); }
+    function fmtHeading(l) { const ta=document.getElementById('post-content'),s=ta.selectionStart,ls=ta.value.lastIndexOf('\n',s-1)+1;ta.setRangeText('#'.repeat(l)+' ',ls,ls,'end');ta.focus(); }
+    function fmtList(t) { const ta=document.getElementById('post-content'),s=ta.selectionStart,e=ta.selectionEnd,sel=ta.value.slice(s,e)||'항목 1\n항목 2',lines=sel.split('\n'),fmt=lines.map((l,i)=>t==='ol'?`${i+1}. ${l}`:`- ${l}`).join('\n');ta.setRangeText('\n'+fmt+'\n',s,e,'end');ta.focus(); }
+    function fmtBlock(t) { const ta=document.getElementById('post-content'),s=ta.selectionStart,e=ta.selectionEnd,sel=ta.value.slice(s,e)||'내용',rep=t==='code'?`\`\`\`\n${sel}\n\`\`\``:`> ${sel}`;ta.setRangeText(rep,s,e,'end');ta.focus(); }
+    function fmtLink() { const ta=document.getElementById('post-content'),s=ta.selectionStart,e=ta.selectionEnd,sel=ta.value.slice(s,e)||'링크 텍스트',url=prompt('URL:','https://');if(!url)return;ta.setRangeText(`[${sel}](${url})`,s,e,'end');ta.focus(); }
+
+    // ── 탭 / 미리보기 ────────────────────────────────────────────────────
+    function switchTab(tab, btn) {
+      document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+      btn.classList.add('active');
+      const ed=document.getElementById('post-content'),pr=document.getElementById('preview-pane'),tb=document.getElementById('toolbar');
+      if(tab==='preview'){ed.style.display='none';tb.style.display='none';pr.style.display='block';pr.innerHTML=renderMd(ed.value);}
+      else{ed.style.display='block';tb.style.display='flex';pr.style.display='none';}
+    }
+    function renderMd(md){if(!md)return'<p style="color:#4a545e;">미리볼 내용이 없습니다.</p>';return md.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/^#{3} (.+)$/gm,'<h3>$1</h3>').replace(/^#{2} (.+)$/gm,'<h2>$1</h2>').replace(/^# (.+)$/gm,'<h1>$1</h1>').replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*(.+?)\*/g,'<em>$1</em>').replace(/`([^`]+)`/g,'<code>$1</code>').replace(/\[(.+?)\]\((.+?)\)/g,'<a href="$2">$1</a>').replace(/\n\n/g,'</p><p>');}
+
+    function previewFeatImg(url){const p=document.getElementById('feat-img-preview'),i=document.getElementById('feat-img');if(url){i.src=url;p.style.display='block';}else p.style.display='none';}
+
+    // 자동저장
+    document.getElementById('post-content').addEventListener('input',()=>{clearTimeout(autosaveTimer);hint.textContent='자동저장 대기 중...';autosaveTimer=setTimeout(()=>savePost('draft',true),30000);});
+    document.getElementById('post-title').addEventListener('input',()=>{clearTimeout(autosaveTimer);autosaveTimer=setTimeout(()=>savePost('draft',true),30000);});
+
+    async function loadCategories(){try{const res=await fetch('/api/terms?taxonomy=category'),data=await res.json(),cats=data.terms||[],el=document.getElementById('categories-list');if(!cats.length){el.textContent='카테고리 없음';return;}el.innerHTML=cats.map(c=>`<label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:6px;font-size:13px;color:#c3c4c7;"><input type="checkbox" value="${c.term_id}" style="width:auto;">${c.name} (${c.count||0})</label>`).join('');}catch{document.getElementById('categories-list').textContent='로드 실패';}}
+
+    loadPost();
+    loadCategories();
+  </script>
+</CmsLayout>
