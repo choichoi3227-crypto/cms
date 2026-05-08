@@ -1,66 +1,28 @@
 # CloudPress CMS — wrangler.toml
-# Cloudflare Pages + Workers Hybrid 배포
-#
-# ▶ Cloudflare Pages (대시보드/Git 연동 자동 배포):
-#     pages_build_output_dir 가 있으면 Pages 프로젝트로 인식합니다.
-#     Build command : npm run build
-#     Build output  : dist
-#
-# ▶ Workers (wrangler CLI 직접 배포):
-#     wrangler deploy  →  main = "dist/_worker.js" 로 배포
-
 name                   = "cloudpress-cms"
 pages_build_output_dir = "."
 compatibility_date     = "2025-04-01"
 compatibility_flags    = ["nodejs_compat"]
 
-# ── D1: WordPress 콘텐츠 DB ──────────────────────────────────────────────────
-# wrangler d1 create cloudpress-cms-db  실행 후 database_id 를 채워 넣으세요.
 [[d1_databases]]
 binding       = "DB"
 database_name = "cloudpress-cms-db"
 database_id   = "REPLACE_WITH_YOUR_D1_ID"
 
-# ── KV: 페이지 캐시 ──────────────────────────────────────────────────────────
-# wrangler kv namespace create CACHE  실행 후 id 를 채워 넣으세요.
 [[kv_namespaces]]
 binding = "CACHE"
 id      = "REPLACE_WITH_YOUR_KV_CACHE_ID"
 
-# ── KV: 세션 스왑 저장소 ────────────────────────────────────────────────────
-# wrangler kv namespace create SESSION_SWAP  실행 후 id 를 채워 넣으세요.
 [[kv_namespaces]]
 binding = "SESSION_SWAP"
 id      = "REPLACE_WITH_YOUR_KV_SESSION_ID"
 
-# ── 평문 환경 변수 ────────────────────────────────────────────────────────────
 [vars]
 WP_TABLE_PREFIX = "wp_"
 SITE_URL        = "https://cloud-press.co.kr"
 GITHUB_OWNER    = ""
 GITHUB_REPO     = ""
 
-# ── Secrets (대시보드 또는 wrangler secret put 으로 설정) ─────────────────────
-#   wrangler secret put JWT_SECRET
-#   wrangler secret put GITHUB_TOKEN
-#   wrangler secret put WP_ADMIN_USER
-#   wrangler secret put WP_ADMIN_PASS
-#   wrangler secret put WP_ADMIN_EMAIL
-
-# ── 로컬 개발 ────────────────────────────────────────────────────────────────
 [dev]
 port           = 8787
 local_protocol = "http"
-
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 최초 설정 순서
-#   1. wrangler d1 create cloudpress-cms-db
-#      → 출력된 database_id → [[d1_databases]].database_id 에 입력
-#   2. wrangler kv namespace create CACHE
-#      → 출력된 id → 첫 번째 [[kv_namespaces]].id 에 입력
-#   3. wrangler kv namespace create SESSION_SWAP
-#      → 출력된 id → 두 번째 [[kv_namespaces]].id 에 입력
-#   4. wrangler secret put JWT_SECRET
-#   5. wrangler secret put GITHUB_TOKEN
-#   6. Pages 대시보드에서 Git 레포 연결 → 자동 빌드/배포 활성화
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
