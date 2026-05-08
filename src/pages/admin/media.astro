@@ -1,0 +1,297 @@
+---
+// src/pages/admin/media.astro
+export const prerender = false;
+import CmsLayout from '../../layouts/CmsLayout.astro';
+---
+<CmsLayout title="미디어 라이브러리" activeMenu="media">
+  <style>
+    .page-header { display:flex;align-items:center;justify-content:space-between;margin-bottom:20px; }
+    h2 { font-size:20px;font-weight:700;color:#fff; }
+    .toolbar { display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:20px; }
+    .btn-upload { background:#2271b1;color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:13px;font-weight:700;cursor:pointer;transition:background .15s; }
+    .btn-upload:hover { background:#135e96; }
+    .view-toggle { display:flex;gap:4px; }
+    .vt-btn { background:#2c3338;border:1px solid #3c434a;border-radius:6px;padding:7px 10px;color:#c3c4c7;cursor:pointer;font-size:15px;transition:all .15s; }
+    .vt-btn.active,.vt-btn:hover { background:rgba(34,113,177,.2);border-color:#2271b1;color:#fff; }
+    .search-wrap input { background:#2c3338;border:1px solid #3c434a;border-radius:8px;padding:7px 12px;color:#fff;font-size:13px;outline:none;width:200px;transition:border-color .15s; }
+    .search-wrap input:focus { border-color:#2271b1; }
+
+    /* 업로드 영역 */
+    #drop-zone {
+      border:2px dashed #3c434a;border-radius:12px;padding:48px;text-align:center;
+      cursor:pointer;transition:all .2s;margin-bottom:20px;
+    }
+    #drop-zone:hover,#drop-zone.drag-over { border-color:#2271b1;background:rgba(34,113,177,.05); }
+    #drop-zone .dz-icon { font-size:40px;margin-bottom:12px; }
+    #drop-zone p { color:#8c8f94;font-size:14px; }
+    #drop-zone span { color:#2271b1;font-weight:600; }
+    .upload-progress { background:#2c3338;border:1px solid #3c434a;border-radius:12px;padding:16px;margin-bottom:20px;display:none; }
+    .progress-bar-wrap { background:#1d2327;border-radius:4px;height:6px;overflow:hidden;margin-top:8px; }
+    .progress-bar { height:100%;background:#2271b1;border-radius:4px;width:0%;transition:width .3s; }
+    .progress-label { font-size:12px;color:#8c8f94;margin-bottom:6px; }
+
+    /* 그리드 뷰 */
+    #media-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px; }
+    .media-item {
+      background:#2c3338;border:1px solid #3c434a;border-radius:10px;overflow:hidden;
+      cursor:pointer;transition:all .15s;position:relative;
+    }
+    .media-item:hover { border-color:#2271b1;transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.3); }
+    .media-item.selected { border-color:#2271b1;box-shadow:0 0 0 2px rgba(34,113,177,.4); }
+    .media-thumb { width:100%;aspect-ratio:1;object-fit:cover;display:block;background:#1d2327; }
+    .media-thumb-placeholder { width:100%;aspect-ratio:1;display:flex;align-items:center;justify-content:center;background:#1d2327;font-size:32px; }
+    .media-name { padding:8px 10px;font-size:11px;color:#c3c4c7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+    .media-size { padding:0 10px 8px;font-size:10px;color:#8c8f94; }
+    .media-sel-badge { position:absolute;top:6px;right:6px;background:#2271b1;color:#fff;border-radius:50%;width:20px;height:20px;display:none;align-items:center;justify-content:center;font-size:11px;font-weight:700; }
+    .media-item.selected .media-sel-badge { display:flex; }
+
+    /* 리스트 뷰 */
+    #media-list { background:#2c3338;border:1px solid #3c434a;border-radius:12px;overflow:hidden;display:none; }
+    .list-head { display:grid;grid-template-columns:40px 1fr 80px 100px 120px 100px;padding:10px 16px;background:rgba(255,255,255,.03);border-bottom:1px solid #3c434a;font-size:11px;font-weight:700;color:#8c8f94;text-transform:uppercase;gap:12px;align-items:center; }
+    .list-row  { display:grid;grid-template-columns:40px 1fr 80px 100px 120px 100px;padding:10px 16px;border-bottom:1px solid rgba(255,255,255,.04);font-size:12px;color:#c3c4c7;gap:12px;align-items:center;transition:background .1s;cursor:pointer; }
+    .list-row:last-child { border-bottom:none; }
+    .list-row:hover { background:rgba(255,255,255,.02); }
+    .list-thumb { width:36px;height:36px;object-fit:cover;border-radius:5px;background:#1d2327; }
+    .list-thumb-ph { width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:#1d2327;border-radius:5px;font-size:16px; }
+    .act-btn { padding:4px 10px;border-radius:5px;border:1px solid #3c434a;background:transparent;color:#c3c4c7;font-size:11px;cursor:pointer;transition:all .15s;margin-right:4px; }
+    .act-btn:hover { background:rgba(34,113,177,.2);border-color:#2271b1;color:#fff; }
+    .act-btn.del:hover { background:rgba(248,113,113,.1);border-color:#f87171;color:#f87171; }
+
+    /* 상세 패널 */
+    #detail-panel {
+      position:fixed;right:0;top:0;bottom:0;width:320px;background:#2c3338;border-left:1px solid #3c434a;
+      padding:24px;overflow-y:auto;transform:translateX(100%);transition:transform .25s;z-index:200;
+    }
+    #detail-panel.open { transform:translateX(0); }
+    .dp-close { position:absolute;top:16px;right:16px;background:transparent;border:none;color:#8c8f94;font-size:20px;cursor:pointer; }
+    .dp-thumb { width:100%;border-radius:8px;object-fit:contain;max-height:200px;background:#1d2327;margin-bottom:16px; }
+    .dp-field { margin-bottom:14px; }
+    .dp-label { font-size:11px;color:#8c8f94;font-weight:700;text-transform:uppercase;margin-bottom:4px; }
+    .dp-value { font-size:13px;color:#c3c4c7;word-break:break-all; }
+    .dp-input { width:100%;background:#1d2327;border:1px solid #3c434a;border-radius:6px;padding:7px 10px;color:#fff;font-size:13px;outline:none; }
+    .dp-input:focus { border-color:#2271b1; }
+    .dp-copy-btn { background:#1d2327;border:1px solid #3c434a;border-radius:6px;padding:6px 12px;color:#c3c4c7;font-size:11px;cursor:pointer;margin-top:6px;transition:all .15s; }
+    .dp-copy-btn:hover { background:rgba(34,113,177,.2);border-color:#2271b1;color:#fff; }
+    .empty { padding:64px;text-align:center;color:#8c8f94;font-size:14px; }
+  </style>
+
+  <div class="page-header">
+    <h2>미디어 라이브러리</h2>
+    <button class="btn-upload" onclick="document.getElementById('file-input').click()">+ 파일 업로드</button>
+  </div>
+
+  <input id="file-input" type="file" multiple accept="image/*,video/*,audio/*,.pdf,.zip,.doc,.docx" style="display:none" onchange="handleFiles(this.files)" />
+
+  <!-- 드래그 & 드롭 영역 -->
+  <div id="drop-zone"
+    onclick="document.getElementById('file-input').click()"
+    ondragover="event.preventDefault();this.classList.add('drag-over')"
+    ondragleave="this.classList.remove('drag-over')"
+    ondrop="event.preventDefault();this.classList.remove('drag-over');handleFiles(event.dataTransfer.files)">
+    <div class="dz-icon">☁️</div>
+    <p><span>클릭</span>하거나 파일을 여기에 드래그하세요</p>
+    <p style="font-size:12px;margin-top:6px;">이미지, PDF, 문서, 동영상 등 모든 파일 형식 지원</p>
+  </div>
+
+  <!-- 업로드 진행 -->
+  <div class="upload-progress" id="upload-progress">
+    <div class="progress-label" id="progress-label">업로드 중...</div>
+    <div class="progress-bar-wrap"><div class="progress-bar" id="progress-bar"></div></div>
+  </div>
+
+  <!-- 툴바 -->
+  <div class="toolbar">
+    <div class="view-toggle">
+      <button class="vt-btn active" id="vt-grid" onclick="setView('grid',this)" title="그리드 뷰">⊞</button>
+      <button class="vt-btn" id="vt-list" onclick="setView('list',this)" title="리스트 뷰">☰</button>
+    </div>
+    <div class="search-wrap">
+      <input type="text" id="media-search" placeholder="파일 검색..." oninput="onSearch()" />
+    </div>
+    <div style="margin-left:auto;font-size:12px;color:#8c8f94;" id="media-count"></div>
+  </div>
+
+  <!-- 그리드 뷰 -->
+  <div id="media-grid"></div>
+  <!-- 리스트 뷰 -->
+  <div id="media-list">
+    <div class="list-head"><div></div><div>파일명</div><div>유형</div><div>크기</div><div>날짜</div><div>작업</div></div>
+    <div id="list-body"></div>
+  </div>
+
+  <!-- 상세 패널 -->
+  <div id="detail-panel">
+    <button class="dp-close" onclick="closeDetail()">✕</button>
+    <div id="detail-content"></div>
+  </div>
+
+  <script>
+    let allMedia = [], currentView = 'grid', selectedId = null, searchTimer = null;
+    function escHtml(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+    function fmtSize(b){if(!b)return'-';if(b<1024)return b+'B';if(b<1024*1024)return(b/1024).toFixed(1)+'KB';return(b/1024/1024).toFixed(2)+'MB';}
+    function isImage(mime){return mime&&mime.startsWith('image/');}
+    function mimeIcon(mime){if(!mime)return'📄';if(mime.startsWith('image/'))return'🖼️';if(mime.startsWith('video/'))return'🎬';if(mime.startsWith('audio/'))return'🎵';if(mime.includes('pdf'))return'📕';if(mime.includes('zip')||mime.includes('compress'))return'📦';return'📄';}
+
+    async function loadMedia() {
+      try {
+        const q = document.getElementById('media-search').value.trim();
+        const params = new URLSearchParams({ post_type:'attachment', per_page:200 });
+        if (q) params.set('search', q);
+        const res  = await fetch('/api/posts?' + params);
+        const data = await res.json();
+        allMedia = data.posts || [];
+        document.getElementById('media-count').textContent = `${allMedia.length}개 파일`;
+        renderMedia();
+      } catch (e) { console.error(e); }
+    }
+
+    function renderMedia() {
+      if (currentView === 'grid') renderGrid();
+      else renderList();
+    }
+
+    function renderGrid() {
+      const grid = document.getElementById('media-grid');
+      if (!allMedia.length) { grid.innerHTML='<div class="empty">미디어 파일이 없습니다.</div>'; return; }
+      grid.innerHTML = allMedia.map(m => {
+        const url = m.guid || m._attachment_url || '';
+        const isImg = isImage(m.post_mime_type);
+        return `<div class="media-item ${selectedId===m.ID?'selected':''}" onclick="selectMedia(${m.ID})">
+          <div class="media-sel-badge">✓</div>
+          ${isImg ? `<img class="media-thumb" src="${escHtml(url)}" alt="${escHtml(m.post_title)}" loading="lazy" onerror="this.style.display='none';this.nextSibling.style.display='flex'" />
+          <div class="media-thumb-placeholder" style="display:none;">${mimeIcon(m.post_mime_type)}</div>`
+          : `<div class="media-thumb-placeholder">${mimeIcon(m.post_mime_type)}</div>`}
+          <div class="media-name">${escHtml(m.post_title||m.post_name||'파일')}</div>
+          <div class="media-size">${fmtSize(m._filesize)}</div>
+        </div>`;
+      }).join('');
+    }
+
+    function renderList() {
+      const body = document.getElementById('list-body');
+      if (!allMedia.length) { body.innerHTML='<div class="empty">미디어 파일이 없습니다.</div>'; return; }
+      body.innerHTML = allMedia.map(m => {
+        const url = m.guid || m._attachment_url || '';
+        const isImg = isImage(m.post_mime_type);
+        return `<div class="list-row" onclick="selectMedia(${m.ID})">
+          ${isImg ? `<img class="list-thumb" src="${escHtml(url)}" alt="" onerror="this.style.display='none'" />`
+                  : `<div class="list-thumb-ph">${mimeIcon(m.post_mime_type)}</div>`}
+          <div>${escHtml(m.post_title||m.post_name||'파일')}</div>
+          <div style="color:#8c8f94;">${escHtml(m.post_mime_type?.split('/')[1]?.toUpperCase()||'-')}</div>
+          <div style="color:#8c8f94;">${fmtSize(m._filesize)}</div>
+          <div style="color:#8c8f94;">${m.post_date?new Date(m.post_date).toLocaleDateString('ko-KR'):'-'}</div>
+          <div>
+            <button class="act-btn" onclick="event.stopPropagation();copyUrl('${escHtml(url)}')">URL 복사</button>
+            <button class="act-btn del" onclick="event.stopPropagation();deleteMedia(${m.ID},'${escHtml(m.post_title||'')}')">삭제</button>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    function setView(v, btn) {
+      currentView = v;
+      document.querySelectorAll('.vt-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active');
+      document.getElementById('media-grid').style.display = v==='grid' ? 'grid' : 'none';
+      document.getElementById('media-list').style.display = v==='list' ? 'block' : 'none';
+      renderMedia();
+    }
+
+    function selectMedia(id) {
+      selectedId = selectedId === id ? null : id;
+      renderMedia();
+      if (selectedId !== null) openDetail(allMedia.find(m=>m.ID===id));
+      else closeDetail();
+    }
+
+    function openDetail(m) {
+      if (!m) return;
+      const url = m.guid || m._attachment_url || '';
+      const isImg = isImage(m.post_mime_type);
+      document.getElementById('detail-content').innerHTML = `
+        ${isImg ? `<img class="dp-thumb" src="${escHtml(url)}" alt="${escHtml(m.post_title)}" />` : `<div style="font-size:64px;text-align:center;padding:20px;">${mimeIcon(m.post_mime_type)}</div>`}
+        <div class="dp-field"><div class="dp-label">파일명</div><div class="dp-value">${escHtml(m.post_title||m.post_name||'')}</div></div>
+        <div class="dp-field"><div class="dp-label">URL</div><input class="dp-input" value="${escHtml(url)}" readonly id="detail-url" /><button class="dp-copy-btn" onclick="copyUrl('${escHtml(url)}')">📋 URL 복사</button></div>
+        <div class="dp-field"><div class="dp-label">형식</div><div class="dp-value">${escHtml(m.post_mime_type||'-')}</div></div>
+        <div class="dp-field"><div class="dp-label">크기</div><div class="dp-value">${fmtSize(m._filesize)}</div></div>
+        <div class="dp-field"><div class="dp-label">업로드 날짜</div><div class="dp-value">${m.post_date?new Date(m.post_date).toLocaleString('ko-KR'):'-'}</div></div>
+        <div style="margin-top:20px;">
+          <button onclick="deleteMedia(${m.ID},'${escHtml(m.post_title||'')}')" style="width:100%;background:transparent;border:1px solid #8b2020;color:#f87171;border-radius:8px;padding:9px;cursor:pointer;font-size:13px;transition:background .15s;" onmouseover="this.style.background='rgba(248,113,113,.1)'" onmouseout="this.style.background='transparent'">🗑️ 삭제</button>
+        </div>`;
+      document.getElementById('detail-panel').classList.add('open');
+    }
+
+    function closeDetail() {
+      selectedId = null;
+      document.getElementById('detail-panel').classList.remove('open');
+      renderMedia();
+    }
+
+    function copyUrl(url) {
+      navigator.clipboard.writeText(url).then(() => {
+        const btn = event.target;
+        const orig = btn.textContent;
+        btn.textContent = '✅ 복사됨!';
+        setTimeout(() => { btn.textContent = orig; }, 2000);
+      }).catch(() => {
+        const inp = document.getElementById('detail-url');
+        if (inp) { inp.select(); document.execCommand('copy'); }
+      });
+    }
+
+    async function deleteMedia(id, title) {
+      if (!confirm(`"${title}" 파일을 삭제하시겠습니까?`)) return;
+      try {
+        const res = await fetch(`/api/posts/${id}`, { method:'DELETE' });
+        if (!res.ok) throw new Error((await res.json()).error||'삭제 실패');
+        if (selectedId === id) closeDetail();
+        loadMedia();
+      } catch (e) { alert('오류: ' + e.message); }
+    }
+
+    // ── 파일 업로드 ─────────────────────────────────────────────────────
+    async function handleFiles(files) {
+      if (!files || !files.length) return;
+      const progress = document.getElementById('upload-progress');
+      const bar      = document.getElementById('progress-bar');
+      const label    = document.getElementById('progress-label');
+      progress.style.display = 'block';
+      bar.style.width = '0%';
+
+      let done = 0;
+      for (const file of files) {
+        label.textContent = `업로드 중: ${file.name} (${done+1}/${files.length})`;
+        try {
+          const base64 = await new Promise((res, rej) => {
+            const r = new FileReader();
+            r.onload  = () => res(r.result.split(',')[1]);
+            r.onerror = rej;
+            r.readAsDataURL(file);
+          });
+          const resp = await fetch('/api/media/upload', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ filename: file.name, mime_type: file.type, size: file.size, data: base64 }),
+          });
+          if (!resp.ok) throw new Error((await resp.json()).error || '업로드 실패');
+        } catch (e) {
+          alert(`${file.name} 업로드 실패: ${e.message}`);
+        }
+        done++;
+        bar.style.width = `${(done/files.length)*100}%`;
+      }
+      label.textContent = `✅ ${done}개 파일 업로드 완료`;
+      setTimeout(() => { progress.style.display='none'; bar.style.width='0%'; }, 2500);
+      document.getElementById('file-input').value = '';
+      loadMedia();
+    }
+
+    function onSearch() {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(loadMedia, 400);
+    }
+
+    // 초기화
+    setView('grid', document.getElementById('vt-grid'));
+    loadMedia();
+  </script>
+</CmsLayout>
