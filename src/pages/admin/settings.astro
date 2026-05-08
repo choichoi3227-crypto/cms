@@ -1,0 +1,361 @@
+---
+// src/pages/admin/settings.astro
+export const prerender = false;
+import CmsLayout from '../../layouts/CmsLayout.astro';
+---
+<CmsLayout title="설정" activeMenu="settings">
+  <style>
+    h2 { font-size:20px;font-weight:700;color:#fff;margin-bottom:20px; }
+    .tabs { display:flex;gap:4px;margin-bottom:24px;border-bottom:1px solid #3c434a;padding-bottom:0; }
+    .tab { padding:10px 18px;font-size:13px;font-weight:600;cursor:pointer;color:#8c8f94;border:none;background:transparent;border-bottom:2px solid transparent;transition:all .15s;margin-bottom:-1px; }
+    .tab.active { color:#2271b1;border-bottom-color:#2271b1; }
+    .tab-pane { display:none; }
+    .tab-pane.active { display:block; }
+    .card { background:#2c3338;border:1px solid #3c434a;border-radius:12px;padding:24px;margin-bottom:20px; }
+    .card-title { font-size:15px;font-weight:700;color:#fff;margin-bottom:20px; }
+    .field { margin-bottom:18px; }
+    label { display:block;font-size:12px;color:#8c8f94;font-weight:700;margin-bottom:6px; }
+    input[type="text"],input[type="url"],input[type="email"],input[type="password"],input[type="number"],textarea,select {
+      width:100%;background:#1d2327;border:1px solid #3c434a;border-radius:8px;padding:10px 14px;
+      color:#fff;font-size:14px;outline:none;transition:border-color .2s;font-family:inherit;
+    }
+    input:focus,textarea:focus,select:focus { border-color:#2271b1; }
+    .field-hint { font-size:11px;color:#4a545e;margin-top:5px; }
+    .btn-save { background:#2271b1;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer;transition:background .15s; }
+    .btn-save:hover { background:#135e96; }
+    .btn-save:disabled { opacity:.5;cursor:not-allowed; }
+    .alert { padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:16px;display:none; }
+    .alert.ok    { background:#1a3020;border:1px solid #208b45;color:#4ade80;display:block; }
+    .alert.error { background:#3b1f1f;border:1px solid #8b2020;color:#f87171;display:block; }
+    .row-2 { display:grid;grid-template-columns:1fr 1fr;gap:16px; }
+    .toggle-wrap { display:flex;align-items:center;gap:10px; }
+    .toggle { width:42px;height:24px;background:#3c434a;border-radius:12px;position:relative;cursor:pointer;transition:background .2s;flex-shrink:0; }
+    .toggle::after { content:'';position:absolute;width:18px;height:18px;background:#fff;border-radius:50%;top:3px;left:3px;transition:left .2s; }
+    .toggle.on { background:#2271b1; }
+    .toggle.on::after { left:21px; }
+    .toggle-label { font-size:13px;color:#c3c4c7; }
+    @media(max-width:640px){ .row-2{grid-template-columns:1fr;} }
+  </style>
+
+  <h2>사이트 설정</h2>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('general',this)">일반</button>
+    <button class="tab" onclick="switchTab('reading',this)">읽기</button>
+    <button class="tab" onclick="switchTab('writing',this)">쓰기</button>
+    <button class="tab" onclick="switchTab('discussion',this)">토론</button>
+    <button class="tab" onclick="switchTab('account',this)">계정</button>
+  </div>
+
+  <!-- 일반 설정 -->
+  <div id="pane-general" class="tab-pane active">
+    <div id="alert-general" class="alert"></div>
+    <div class="card">
+      <div class="card-title">사이트 기본 정보</div>
+      <div class="field">
+        <label>사이트 제목</label>
+        <input id="siteTitle" type="text" placeholder="내 사이트" />
+      </div>
+      <div class="field">
+        <label>태그라인 (슬로건)</label>
+        <input id="blogdescription" type="text" placeholder="사이트를 한 문장으로 소개하세요" />
+        <div class="field-hint">검색 결과와 사이트 헤더에 표시됩니다.</div>
+      </div>
+      <div class="row-2">
+        <div class="field">
+          <label>WordPress 주소 (URL)</label>
+          <input id="siteurl" type="url" placeholder="https://example.com" />
+        </div>
+        <div class="field">
+          <label>사이트 주소 (URL)</label>
+          <input id="home" type="url" placeholder="https://example.com" />
+        </div>
+      </div>
+      <div class="row-2">
+        <div class="field">
+          <label>관리자 이메일</label>
+          <input id="admin_email" type="email" placeholder="admin@example.com" />
+        </div>
+        <div class="field">
+          <label>시간대</label>
+          <select id="timezone_string">
+            <option value="Asia/Seoul">서울 (UTC+9)</option>
+            <option value="Asia/Tokyo">도쿄 (UTC+9)</option>
+            <option value="America/New_York">뉴욕 (UTC-5)</option>
+            <option value="Europe/London">런던 (UTC+0)</option>
+            <option value="UTC">UTC</option>
+          </select>
+        </div>
+      </div>
+      <div class="row-2">
+        <div class="field">
+          <label>날짜 형식</label>
+          <select id="date_format">
+            <option value="Y년 n월 j일">2025년 1월 1일</option>
+            <option value="Y-m-d">2025-01-01</option>
+            <option value="m/d/Y">01/01/2025</option>
+            <option value="d/m/Y">01/01/2025</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>언어</label>
+          <select id="WPLANG">
+            <option value="ko_KR">한국어</option>
+            <option value="">English</option>
+            <option value="ja">日本語</option>
+            <option value="zh_CN">中文 (简体)</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn-save" onclick="saveSettings('general')">변경사항 저장</button>
+    </div>
+  </div>
+
+  <!-- 읽기 설정 -->
+  <div id="pane-reading" class="tab-pane">
+    <div id="alert-reading" class="alert"></div>
+    <div class="card">
+      <div class="card-title">프런트 페이지 표시</div>
+      <div class="field">
+        <label>홈 페이지 표시</label>
+        <select id="show_on_front">
+          <option value="posts">최신 글</option>
+          <option value="page">고정 페이지</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>블로그 페이지당 표시할 글 수</label>
+        <input id="posts_per_page" type="number" min="1" max="100" placeholder="10" style="width:100px;" />
+      </div>
+      <div class="field">
+        <label>RSS 피드에 표시할 항목 수</label>
+        <input id="posts_per_rss" type="number" min="1" max="50" placeholder="10" style="width:100px;" />
+      </div>
+      <div class="field">
+        <label>검색 엔진 공개 여부</label>
+        <div class="toggle-wrap">
+          <div class="toggle on" id="toggle-indexing" onclick="toggleEl(this,'blog_public')"></div>
+          <span class="toggle-label">검색 엔진이 사이트를 색인하도록 허용</span>
+        </div>
+        <input type="hidden" id="blog_public" value="1" />
+      </div>
+      <button class="btn-save" onclick="saveSettings('reading')">변경사항 저장</button>
+    </div>
+  </div>
+
+  <!-- 쓰기 설정 -->
+  <div id="pane-writing" class="tab-pane">
+    <div id="alert-writing" class="alert"></div>
+    <div class="card">
+      <div class="card-title">쓰기 설정</div>
+      <div class="field">
+        <label>기본 글 카테고리</label>
+        <select id="default_category">
+          <option value="1">미분류</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>기본 글 형식</label>
+        <select id="default_post_format">
+          <option value="0">표준</option>
+          <option value="aside">짧은 글</option>
+          <option value="image">이미지</option>
+          <option value="video">동영상</option>
+          <option value="quote">인용</option>
+          <option value="link">링크</option>
+        </select>
+      </div>
+      <button class="btn-save" onclick="saveSettings('writing')">변경사항 저장</button>
+    </div>
+  </div>
+
+  <!-- 토론 설정 -->
+  <div id="pane-discussion" class="tab-pane">
+    <div id="alert-discussion" class="alert"></div>
+    <div class="card">
+      <div class="card-title">댓글 설정</div>
+      <div class="field">
+        <div class="toggle-wrap">
+          <div class="toggle on" id="toggle-comments" onclick="toggleEl(this,'default_comment_status')"></div>
+          <span class="toggle-label">새 글에 댓글 허용</span>
+        </div>
+        <input type="hidden" id="default_comment_status" value="open" />
+      </div>
+      <div class="field">
+        <div class="toggle-wrap">
+          <div class="toggle" id="toggle-moderation" onclick="toggleEl(this,'comment_moderation','1','0')"></div>
+          <span class="toggle-label">댓글이 게시되기 전에 승인 필요</span>
+        </div>
+        <input type="hidden" id="comment_moderation" value="0" />
+      </div>
+      <div class="field">
+        <div class="toggle-wrap">
+          <div class="toggle on" id="toggle-avatars" onclick="toggleEl(this,'show_avatars','1','0')"></div>
+          <span class="toggle-label">아바타 표시</span>
+        </div>
+        <input type="hidden" id="show_avatars" value="1" />
+      </div>
+      <button class="btn-save" onclick="saveSettings('discussion')">변경사항 저장</button>
+    </div>
+  </div>
+
+  <!-- 계정 설정 -->
+  <div id="pane-account" class="tab-pane">
+    <div id="alert-account" class="alert"></div>
+    <div class="card">
+      <div class="card-title">비밀번호 변경</div>
+      <div class="field">
+        <label>현재 비밀번호</label>
+        <input id="current_password" type="password" placeholder="현재 비밀번호 입력" />
+      </div>
+      <div class="row-2">
+        <div class="field">
+          <label>새 비밀번호</label>
+          <input id="new_password" type="password" placeholder="새 비밀번호 (8자 이상)" />
+        </div>
+        <div class="field">
+          <label>새 비밀번호 확인</label>
+          <input id="confirm_password" type="password" placeholder="새 비밀번호 재입력" />
+        </div>
+      </div>
+      <button class="btn-save" onclick="changePassword()">비밀번호 변경</button>
+    </div>
+    <div class="card">
+      <div class="card-title">프로필 정보</div>
+      <div class="row-2">
+        <div class="field">
+          <label>표시 이름</label>
+          <input id="display_name" type="text" placeholder="표시 이름" />
+        </div>
+        <div class="field">
+          <label>이메일</label>
+          <input id="user_email" type="email" placeholder="이메일" />
+        </div>
+      </div>
+      <div class="field">
+        <label>자기소개</label>
+        <textarea id="description" rows="3" placeholder="자기소개를 입력하세요"></textarea>
+      </div>
+      <button class="btn-save" onclick="saveProfile()">프로필 저장</button>
+    </div>
+  </div>
+
+  <script>
+    const OPTION_KEYS = {
+      general:    ['siteTitle','blogdescription','siteurl','home','admin_email','timezone_string','date_format','WPLANG'],
+      reading:    ['show_on_front','posts_per_page','posts_per_rss','blog_public'],
+      writing:    ['default_category','default_post_format'],
+      discussion: ['default_comment_status','comment_moderation','show_avatars'],
+    };
+    const KEY_MAP = { siteTitle: 'blogname' };
+    const REVERSE_MAP = { blogname: 'siteTitle' };
+
+    function switchTab(tab, btn) {
+      document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active')); btn.classList.add('active');
+      document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+      document.getElementById('pane-'+tab).classList.add('active');
+    }
+
+    function toggleEl(el, inputId, onVal='1', offVal='0') {
+      el.classList.toggle('on');
+      const inp = document.getElementById(inputId);
+      if (!inp) return;
+      const isOn = el.classList.contains('on');
+      // special cases
+      if (inputId === 'default_comment_status') inp.value = isOn ? 'open' : 'closed';
+      else inp.value = isOn ? onVal : offVal;
+    }
+
+    async function loadOptions() {
+      try {
+        const res  = await fetch('/api/settings');
+        const data = await res.json();
+        const opts = data.options || {};
+        Object.entries(opts).forEach(([k, v]) => {
+          const elId = REVERSE_MAP[k] || k;
+          const el   = document.getElementById(elId);
+          if (!el) return;
+          if (el.type === 'checkbox') el.checked = v === '1';
+          else el.value = v || '';
+        });
+        // 토글 초기 상태
+        syncToggle('toggle-indexing',  opts.blog_public !== '0');
+        syncToggle('toggle-comments',  opts.default_comment_status !== 'closed');
+        syncToggle('toggle-moderation',opts.comment_moderation === '1');
+        syncToggle('toggle-avatars',   opts.show_avatars !== '0');
+      } catch (e) { console.error('설정 로드 실패', e); }
+    }
+
+    function syncToggle(id, on) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (on) el.classList.add('on'); else el.classList.remove('on');
+    }
+
+    async function saveSettings(section) {
+      const alertEl = document.getElementById('alert-'+section);
+      alertEl.className = 'alert';
+      const keys    = OPTION_KEYS[section] || [];
+      const options = {};
+      keys.forEach(k => {
+        const el = document.getElementById(k);
+        if (!el) return;
+        const realKey = KEY_MAP[k] || k;
+        options[realKey] = el.value;
+      });
+      try {
+        const res = await fetch('/api/settings', {
+          method: 'PUT',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ options }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error||'저장 실패');
+        alertEl.className = 'alert ok'; alertEl.textContent = '✅ 설정이 저장되었습니다.';
+        setTimeout(()=>{alertEl.className='alert';},3000);
+      } catch (e) { alertEl.className='alert error'; alertEl.textContent=e.message; }
+    }
+
+    async function changePassword() {
+      const alertEl = document.getElementById('alert-account');
+      alertEl.className = 'alert';
+      const cur  = document.getElementById('current_password').value;
+      const nw   = document.getElementById('new_password').value;
+      const conf = document.getElementById('confirm_password').value;
+      if (!cur||!nw||!conf) { alertEl.className='alert error'; alertEl.textContent='모든 필드를 입력해주세요.'; return; }
+      if (nw !== conf) { alertEl.className='alert error'; alertEl.textContent='새 비밀번호가 일치하지 않습니다.'; return; }
+      if (nw.length < 8) { alertEl.className='alert error'; alertEl.textContent='비밀번호는 8자 이상이어야 합니다.'; return; }
+      try {
+        const res = await fetch('/api/auth/change-password', {
+          method: 'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ current_password: cur, new_password: nw }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error||'변경 실패');
+        alertEl.className='alert ok'; alertEl.textContent='✅ 비밀번호가 변경되었습니다.';
+        ['current_password','new_password','confirm_password'].forEach(id=>{document.getElementById(id).value='';});
+      } catch (e) { alertEl.className='alert error'; alertEl.textContent=e.message; }
+    }
+
+    async function saveProfile() {
+      const alertEl = document.getElementById('alert-account');
+      alertEl.className = 'alert';
+      try {
+        const res = await fetch('/api/auth/profile', {
+          method: 'PUT', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({
+            display_name: document.getElementById('display_name').value,
+            user_email:   document.getElementById('user_email').value,
+            description:  document.getElementById('description').value,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error||'저장 실패');
+        alertEl.className='alert ok'; alertEl.textContent='✅ 프로필이 저장되었습니다.';
+        setTimeout(()=>{alertEl.className='alert';},3000);
+      } catch (e) { alertEl.className='alert error'; alertEl.textContent=e.message; }
+    }
+
+    loadOptions();
+  </script>
+</CmsLayout>
