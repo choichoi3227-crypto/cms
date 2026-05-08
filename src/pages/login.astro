@@ -1,0 +1,159 @@
+---
+// src/pages/login.astro
+export const prerender = false;
+
+// 이미 로그인된 경우 /admin으로 리다이렉트
+const cookie = Astro.request.headers.get('cookie') || '';
+const hasSession = cookie.includes('cp_cms_session=');
+if (hasSession) {
+  return Astro.redirect('/admin', 302);
+}
+---
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CloudPress CMS — 로그인</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #1d2327;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .login-wrap {
+      width: 100%;
+      max-width: 360px;
+    }
+    .logo {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+    .logo h1 {
+      color: #fff;
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+    .logo span { color: #2271b1; }
+    .logo p { color: #8c8f94; font-size: 13px; margin-top: 6px; }
+    .card {
+      background: #2c3338;
+      border: 1px solid #3c434a;
+      border-radius: 12px;
+      padding: 32px;
+    }
+    .field { margin-bottom: 18px; }
+    label {
+      display: block;
+      color: #c3c4c7;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    input[type="text"], input[type="password"] {
+      width: 100%;
+      background: #1d2327;
+      border: 1px solid #3c434a;
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: #fff;
+      font-size: 14px;
+      outline: none;
+      transition: border-color .2s;
+    }
+    input:focus { border-color: #2271b1; }
+    .btn-login {
+      width: 100%;
+      background: #2271b1;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background .2s;
+      margin-top: 8px;
+    }
+    .btn-login:hover { background: #135e96; }
+    .btn-login:disabled { background: #3c434a; cursor: not-allowed; }
+    .alert {
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-bottom: 16px;
+      display: none;
+    }
+    .alert.error { background: #3b1f1f; border: 1px solid #8b2020; color: #f87171; display: block; }
+    .alert.ok    { background: #1a3020; border: 1px solid #208b45; color: #4ade80; display: block; }
+  </style>
+</head>
+<body>
+  <div class="login-wrap">
+    <div class="logo">
+      <h1>Cloud<span>Press</span> CMS</h1>
+      <p>WordPress 관리자 패널</p>
+    </div>
+    <div class="card">
+      <div id="alert" class="alert"></div>
+      <div class="field">
+        <label for="user">사용자 이름 또는 이메일</label>
+        <input id="user" type="text" placeholder="admin" autocomplete="username" />
+      </div>
+      <div class="field">
+        <label for="pass">비밀번호</label>
+        <input id="pass" type="password" placeholder="••••••••" autocomplete="current-password" />
+      </div>
+      <button class="btn-login" id="loginBtn" onclick="doLogin()">로그인</button>
+    </div>
+  </div>
+
+  <script>
+    // Enter 키 지원
+    document.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+    async function doLogin() {
+      const user = document.getElementById('user').value.trim();
+      const pass = document.getElementById('pass').value;
+      const btn  = document.getElementById('loginBtn');
+      const alert = document.getElementById('alert');
+      alert.className = 'alert';
+
+      if (!user || !pass) {
+        alert.className = 'alert error';
+        alert.textContent = '사용자 이름과 비밀번호를 입력해주세요.';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = '로그인 중...';
+
+      try {
+        const res  = await fetch('/api/auth/login', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ username: user, password: pass }),
+        });
+        const data = await res.json();
+
+        if (!res.ok) throw new Error(data.error || '로그인 실패');
+
+        alert.className = 'alert ok';
+        alert.textContent = '로그인 성공! 이동 중...';
+        window.location.href = '/admin';
+      } catch (e) {
+        alert.className = 'alert error';
+        alert.textContent = e.message;
+        btn.disabled = false;
+        btn.textContent = '로그인';
+      }
+    }
+  </script>
+</body>
+</html>
