@@ -1,0 +1,223 @@
+---
+// src/pages/admin/comments.astro
+export const prerender = false;
+import CmsLayout from '../../layouts/CmsLayout.astro';
+---
+<CmsLayout title="댓글" activeMenu="comments">
+  <style>
+    h2 { font-size:20px;font-weight:700;color:#fff;margin-bottom:4px; }
+    .subsubsub { font-size:13px;color:#8c8f94;margin-bottom:16px; }
+    .subsubsub a { color:#2271b1;text-decoration:none;cursor:pointer; }
+    .subsubsub a.current { color:#fff;font-weight:700; }
+    .page-header { display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px; }
+    .search-bar { display:flex;gap:8px;margin-bottom:16px; }
+    .search-bar input { background:#2c3338;border:1px solid #3c434a;border-radius:4px;padding:7px 12px;color:#fff;font-size:13px;outline:none;width:280px;transition:border-color .15s; }
+    .search-bar input:focus { border-color:#2271b1; }
+    .btn { border-radius:4px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid;transition:all .15s; }
+    .btn-primary { background:#2271b1;color:#fff;border-color:#2271b1; }
+    .btn-primary:hover { background:#135e96; }
+    .alert { padding:10px 14px;border-radius:4px;font-size:13px;margin-bottom:12px;display:none; }
+    .alert.ok    { background:#1a3020;border:1px solid #208b45;color:#4ade80;display:block; }
+    .alert.error { background:#3b1f1f;border:1px solid #8b2020;color:#f87171;display:block; }
+
+    /* 댓글 테이블 */
+    .comments-table { background:#2c3338;border:1px solid #3c434a;border-radius:4px;overflow:hidden;width:100%;border-collapse:collapse; }
+    .comments-table thead th { padding:9px 10px;text-align:left;font-size:11px;font-weight:700;color:#8c8f94;background:rgba(255,255,255,.03);border-bottom:1px solid #3c434a;text-transform:uppercase;letter-spacing:.5px; }
+    .comments-table tbody tr { border-bottom:1px solid rgba(255,255,255,.04);transition:background .1s; }
+    .comments-table tbody tr:last-child { border-bottom:none; }
+    .comments-table tbody tr:hover { background:rgba(255,255,255,.02); }
+    .comments-table tbody tr.unapproved { background:rgba(251,191,36,.04);border-left:3px solid #fbbf24; }
+    .comments-table tbody tr.approved  { border-left:3px solid #00a32a; }
+    .comments-table tbody tr.spam      { background:rgba(248,113,113,.04);border-left:3px solid #f87171; }
+    .comments-table td { padding:10px 10px;vertical-align:top;font-size:13px;color:#c3c4c7; }
+    .comment-author-name { font-weight:700;color:#fff;font-size:13px; }
+    .comment-author-meta { font-size:11px;color:#8c8f94;margin-top:2px; }
+    .comment-content { font-size:13px;color:#c3c4c7;line-height:1.5;margin-bottom:8px; }
+    .comment-in-reply { font-size:11px;color:#8c8f94; }
+    .comment-in-reply a { color:#2271b1;text-decoration:none; }
+    .row-actions { display:flex;gap:8px;flex-wrap:wrap;margin-top:6px; }
+    .row-actions button,.row-actions a {
+      font-size:11px;color:#2271b1;background:none;border:none;cursor:pointer;padding:0;text-decoration:none;transition:color .1s;
+    }
+    .row-actions .approve-btn  { color:#00a32a; }
+    .row-actions .unapprove-btn { color:#fbbf24; }
+    .row-actions .spam-btn     { color:#f87171; }
+    .row-actions .delete-btn   { color:#f87171; }
+    .row-actions button:hover,.row-actions a:hover { opacity:.8; }
+    .row-actions .sep { color:#3c434a; }
+    .status-badge { display:inline-block;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:700; }
+    .status-approved   { background:rgba(0,163,42,.15);color:#00a32a; }
+    .status-unapproved { background:rgba(251,191,36,.15);color:#fbbf24; }
+    .status-spam       { background:rgba(248,113,113,.15);color:#f87171; }
+    .status-trash      { background:rgba(148,163,184,.15);color:#94a3b8; }
+    .empty { padding:48px;text-align:center;color:#8c8f94;font-size:14px; }
+  </style>
+
+  <div class="page-header">
+    <div>
+      <h2>댓글</h2>
+      <div class="subsubsub">
+        <a class="current" id="f-all"        onclick="filterComments('all',this)">전체 <span id="cnt-all">(0)</span></a> |
+        <a id="f-pending"  onclick="filterComments('0',this)">승인 대기 <span id="cnt-pending">(0)</span></a> |
+        <a id="f-approved" onclick="filterComments('1',this)">승인됨 <span id="cnt-approved">(0)</span></a> |
+        <a id="f-spam"     onclick="filterComments('spam',this)">스팸 <span id="cnt-spam">(0)</span></a> |
+        <a id="f-trash"    onclick="filterComments('trash',this)">휴지통 <span id="cnt-trash">(0)</span></a>
+      </div>
+    </div>
+  </div>
+
+  <div class="search-bar">
+    <input id="comment-search" type="text" placeholder="댓글 검색..." oninput="onSearchComments()" />
+    <button class="btn btn-primary" onclick="loadComments()">검색</button>
+  </div>
+
+  <div id="comments-alert" class="alert"></div>
+
+  <table class="comments-table">
+    <thead>
+      <tr>
+        <th style="width:180px;">작성자</th>
+        <th>댓글</th>
+        <th style="width:160px;">날짜</th>
+        <th style="width:80px;">상태</th>
+      </tr>
+    </thead>
+    <tbody id="comments-tbody">
+      <tr><td colspan="4" class="empty">로딩 중...</td></tr>
+    </tbody>
+  </table>
+
+  <script>
+    let currentFilter = 'all';
+    let searchTimer   = null;
+    function escHtml(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+    function filterComments(filter, el) {
+      currentFilter = filter;
+      document.querySelectorAll('.subsubsub a').forEach(a => a.classList.remove('current'));
+      el.classList.add('current');
+      loadComments();
+    }
+
+    function onSearchComments() {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(loadComments, 400);
+    }
+
+    async function loadComments() {
+      const tb   = document.getElementById('comments-tbody');
+      const q    = document.getElementById('comment-search').value.trim();
+      const params = new URLSearchParams({ per_page: 50 });
+      if (currentFilter !== 'all') params.set('status', currentFilter);
+      if (q) params.set('search', q);
+      tb.innerHTML = '<tr><td colspan="4" class="empty">로딩 중...</td></tr>';
+
+      try {
+        const res  = await fetch('/api/comments?' + params);
+        const data = await res.json();
+        const comments = data.comments || [];
+
+        // 카운트 업데이트
+        document.getElementById('cnt-all').textContent     = `(${data.total_all     || 0})`;
+        document.getElementById('cnt-pending').textContent = `(${data.total_pending  || 0})`;
+        document.getElementById('cnt-approved').textContent= `(${data.total_approved || 0})`;
+        document.getElementById('cnt-spam').textContent    = `(${data.total_spam     || 0})`;
+        document.getElementById('cnt-trash').textContent   = `(${data.total_trash    || 0})`;
+
+        if (!comments.length) {
+          tb.innerHTML = '<tr><td colspan="4" class="empty">댓글이 없습니다.</td></tr>';
+          return;
+        }
+
+        tb.innerHTML = comments.map(c => {
+          const approved = c.comment_approved;
+          let rowClass = '';
+          let statusText = '';
+          let statusClass = '';
+          if (approved === '1')     { rowClass='approved';   statusText='승인됨';      statusClass='status-approved'; }
+          else if (approved === '0'){ rowClass='unapproved'; statusText='승인 대기';   statusClass='status-unapproved'; }
+          else if (approved === 'spam') { rowClass='spam';   statusText='스팸';        statusClass='status-spam'; }
+          else                      { rowClass='';           statusText=approved||''; statusClass='status-trash'; }
+
+          return `<tr class="${rowClass}">
+            <td>
+              <div class="comment-author-name">${escHtml(c.comment_author||'')}</div>
+              <div class="comment-author-meta">${escHtml(c.comment_author_email||'')}</div>
+              <div class="comment-author-meta">${escHtml(c.comment_author_IP||'')}</div>
+            </td>
+            <td>
+              <div class="comment-in-reply">
+                <a href="/admin/posts/${c.comment_post_ID}/edit">${escHtml(c.post_title||'글 #'+c.comment_post_ID)}</a>에 대한 댓글
+              </div>
+              <div class="comment-content">${escHtml((c.comment_content||'').slice(0,300))}${(c.comment_content||'').length>300?'...':''}</div>
+              <div class="row-actions">
+                ${approved !== '1'
+                  ? `<button class="approve-btn" onclick="updateComment(${c.comment_ID},'approve')">승인</button><span class="sep">|</span>`
+                  : `<button class="unapprove-btn" onclick="updateComment(${c.comment_ID},'unapprove')">승인 취소</button><span class="sep">|</span>`}
+                ${approved !== 'spam'
+                  ? `<button class="spam-btn" onclick="updateComment(${c.comment_ID},'spam')">스팸</button><span class="sep">|</span>`
+                  : ''}
+                <button class="delete-btn" onclick="deleteComment(${c.comment_ID})">삭제</button>
+                <span class="sep">|</span>
+                <button onclick="quickEditComment(${c.comment_ID},'${escHtml(c.comment_content||'')}')">빠른 편집</button>
+              </div>
+            </td>
+            <td style="font-size:12px;color:#8c8f94;">${c.comment_date?new Date(c.comment_date).toLocaleString('ko-KR'):'-'}</td>
+            <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+          </tr>`;
+        }).join('');
+      } catch (e) {
+        tb.innerHTML = `<tr><td colspan="4" class="empty" style="color:#f87171;">로드 실패: ${escHtml(e.message)}</td></tr>`;
+      }
+    }
+
+    async function updateComment(id, action) {
+      const alertEl = document.getElementById('comments-alert');
+      alertEl.className = 'alert';
+      try {
+        const res  = await fetch(`/api/comments/${id}?action=${action}`, { method:'PUT' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || '실패');
+        alertEl.className = 'alert ok';
+        alertEl.textContent = '✅ ' + data.message;
+        setTimeout(() => { alertEl.className='alert'; }, 3000);
+        loadComments();
+      } catch (e) {
+        alertEl.className = 'alert error';
+        alertEl.textContent = e.message;
+      }
+    }
+
+    async function deleteComment(id) {
+      if (!confirm('이 댓글을 삭제하시겠습니까?')) return;
+      const alertEl = document.getElementById('comments-alert');
+      alertEl.className = 'alert';
+      try {
+        const res  = await fetch(`/api/comments/${id}`, { method:'DELETE' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || '삭제 실패');
+        alertEl.className = 'alert ok';
+        alertEl.textContent = '✅ 댓글이 삭제되었습니다.';
+        setTimeout(() => { alertEl.className='alert'; }, 3000);
+        loadComments();
+      } catch (e) {
+        alertEl.className = 'alert error';
+        alertEl.textContent = e.message;
+      }
+    }
+
+    function quickEditComment(id, content) {
+      const newContent = prompt('댓글 내용 편집:', content);
+      if (newContent === null || newContent === content) return;
+      fetch(`/api/comments/${id}`, {
+        method:'PUT', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ action:'edit', comment_content: newContent }),
+      }).then(r => r.json()).then(data => {
+        if (data.success) { loadComments(); }
+        else alert(data.error || '편집 실패');
+      }).catch(e => alert(e.message));
+    }
+
+    loadComments();
+  </script>
+</CmsLayout>
