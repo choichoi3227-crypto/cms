@@ -1,0 +1,497 @@
+---
+// src/pages/admin/plugins.astro
+export const prerender = false;
+import CmsLayout from '../../layouts/CmsLayout.astro';
+---
+<CmsLayout title="플러그인" activeMenu="plugins">
+  <style>
+    /* WordPress 어드민 스타일과 동일 */
+    h2 { font-size:20px;font-weight:700;color:#fff;margin-bottom:4px; }
+    .subsubsub { font-size:13px;color:#8c8f94;margin-bottom:16px; }
+    .subsubsub a { color:#2271b1;text-decoration:none;cursor:pointer; }
+    .subsubsub a:hover,.subsubsub a.current { color:#fff; }
+    .subsubsub .count { color:#8c8f94; }
+    .page-header { display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px; }
+    .header-right { display:flex;gap:8px;align-items:center; }
+    .btn { border-radius:4px;padding:6px 12px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid;transition:all .15s;text-decoration:none;display:inline-block; }
+    .btn-primary { background:#2271b1;color:#fff;border-color:#2271b1; }
+    .btn-primary:hover { background:#135e96;border-color:#135e96; }
+    .btn-secondary { background:#f6f7f7;color:#2c3338;border-color:#8c8f94; }
+
+    /* 플러그인 목록 테이블 */
+    .wp-list-table {
+      width:100%;border-collapse:collapse;
+      background:#2c3338;border:1px solid #3c434a;border-radius:4px;overflow:hidden;
+    }
+    .wp-list-table thead th {
+      padding:9px 10px;text-align:left;font-size:13px;font-weight:700;color:#8c8f94;
+      background:rgba(255,255,255,.03);border-bottom:1px solid #3c434a;
+      text-transform:uppercase;letter-spacing:.5px;
+    }
+    .wp-list-table tbody tr { border-bottom:1px solid rgba(255,255,255,.04); }
+    .wp-list-table tbody tr:last-child { border-bottom:none; }
+    .wp-list-table tbody tr.active { background:rgba(34,113,177,.08); border-left:4px solid #2271b1; }
+    .wp-list-table tbody tr.inactive { border-left:4px solid transparent; }
+    .wp-list-table tbody tr:hover { background:rgba(255,255,255,.02); }
+    .wp-list-table td { padding:10px 10px;vertical-align:top;font-size:13px;color:#c3c4c7; }
+
+    .plugin-name { font-size:14px;font-weight:700;color:#fff;margin-bottom:4px; }
+    .plugin-desc { font-size:12px;color:#8c8f94;margin-bottom:8px;line-height:1.5; }
+    .row-actions { display:flex;gap:8px;flex-wrap:wrap; }
+    .row-actions a,.row-actions button {
+      font-size:12px;color:#2271b1;background:none;border:none;cursor:pointer;padding:0;
+      text-decoration:none;transition:color .1s;
+    }
+    .row-actions .deactivate { color:#b32d2e; }
+    .row-actions a:hover,.row-actions button:hover { color:#fff; }
+    .row-actions .sep { color:#3c434a;margin:0 2px; }
+    .version-info { font-size:11px;color:#8c8f94; }
+    .status-active   { color:#00a32a;font-weight:700;font-size:11px; }
+    .status-inactive { color:#8c8f94;font-size:11px; }
+    .rating-stars { color:#f0a30a;font-size:12px; }
+    .installs { font-size:11px;color:#8c8f94; }
+
+    /* 검색/업로드 탭 */
+    .nav-tab-wrapper { border-bottom:1px solid #3c434a;margin-bottom:20px;display:flex;gap:0; }
+    .nav-tab {
+      padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer;
+      border:1px solid transparent;border-bottom:none;color:#8c8f94;background:transparent;
+      border-radius:4px 4px 0 0;margin-bottom:-1px;transition:all .15s;
+    }
+    .nav-tab.active,.nav-tab:hover { color:#fff;background:#2c3338;border-color:#3c434a;border-bottom-color:#2c3338; }
+    .nav-tab-content { display:none; }
+    .nav-tab-content.active { display:block; }
+
+    /* 검색 결과 그리드 */
+    .plugin-search-bar { display:flex;gap:10px;margin-bottom:20px;align-items:center;flex-wrap:wrap; }
+    .plugin-search-bar input {
+      background:#1d2327;border:1px solid #3c434a;border-radius:4px;
+      padding:8px 12px;color:#fff;font-size:14px;outline:none;flex:1;min-width:200px;
+      transition:border-color .15s;
+    }
+    .plugin-search-bar input:focus { border-color:#2271b1; }
+    .browse-btns { display:flex;gap:6px;flex-wrap:wrap; }
+    .browse-btn { background:#2c3338;border:1px solid #3c434a;border-radius:4px;padding:6px 12px;color:#c3c4c7;font-size:12px;cursor:pointer;transition:all .15s; }
+    .browse-btn.active,.browse-btn:hover { background:rgba(34,113,177,.2);border-color:#2271b1;color:#fff; }
+
+    .plugins-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px; }
+    .plugin-card {
+      background:#2c3338;border:1px solid #3c434a;border-radius:8px;padding:16px;
+      display:flex;flex-direction:column;gap:10px;transition:border-color .15s;
+    }
+    .plugin-card:hover { border-color:#2271b1; }
+    .plugin-card-header { display:flex;gap:12px;align-items:flex-start; }
+    .plugin-icon { width:48px;height:48px;border-radius:8px;object-fit:cover;background:#1d2327;flex-shrink:0; }
+    .plugin-icon-ph { width:48px;height:48px;border-radius:8px;background:#1d2327;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0; }
+    .plugin-card-title { font-size:14px;font-weight:700;color:#fff; }
+    .plugin-card-author { font-size:11px;color:#8c8f94;margin-top:2px; }
+    .plugin-card-desc { font-size:12px;color:#8c8f94;line-height:1.5;flex:1; }
+    .plugin-card-meta { display:flex;gap:12px;font-size:11px;color:#8c8f94; }
+    .plugin-card-actions { display:flex;gap:8px; }
+    .btn-install { background:#2271b1;color:#fff;border:none;border-radius:4px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;transition:background .15s; }
+    .btn-install:hover { background:#135e96; }
+    .btn-install:disabled { background:#3c434a;cursor:not-allowed; }
+    .btn-installed { background:#00a32a;color:#fff;border:none;border-radius:4px;padding:7px 14px;font-size:12px;font-weight:700;cursor:not-allowed; }
+    .btn-details { background:transparent;border:1px solid #3c434a;color:#c3c4c7;border-radius:4px;padding:7px 14px;font-size:12px;cursor:pointer;transition:all .15s; }
+    .btn-details:hover { border-color:#2271b1;color:#fff; }
+
+    /* zip 업로드 */
+    .upload-plugin-form { background:#2c3338;border:1px solid #3c434a;border-radius:8px;padding:24px; }
+    .upload-plugin-form p { font-size:13px;color:#8c8f94;margin-bottom:16px;line-height:1.6; }
+    #zip-drop-zone {
+      border:2px dashed #3c434a;border-radius:8px;padding:48px;text-align:center;cursor:pointer;
+      transition:all .2s;margin-bottom:16px;
+    }
+    #zip-drop-zone:hover,#zip-drop-zone.drag-over { border-color:#2271b1;background:rgba(34,113,177,.05); }
+    #zip-drop-zone .dz-icon { font-size:40px;margin-bottom:12px; }
+    #zip-drop-zone p { color:#8c8f94;margin:0; }
+    #zip-drop-zone span { color:#2271b1;font-weight:600; }
+    .alert { padding:10px 14px;border-radius:4px;font-size:13px;margin-bottom:12px;display:none; }
+    .alert.ok    { background:#1a3020;border:1px solid #208b45;color:#4ade80;display:block; }
+    .alert.error { background:#3b1f1f;border:1px solid #8b2020;color:#f87171;display:block; }
+    .spinner { display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;margin-right:6px; }
+    @keyframes spin { to{transform:rotate(360deg)} }
+  </style>
+
+  <div class="page-header">
+    <div>
+      <h2>플러그인</h2>
+      <div class="subsubsub">
+        <a class="current" id="filter-all" onclick="filterPlugins('all',this)">전체 <span class="count" id="count-all">(0)</span></a> |
+        <a id="filter-active" onclick="filterPlugins('active',this)">활성 <span class="count" id="count-active">(0)</span></a> |
+        <a id="filter-inactive" onclick="filterPlugins('inactive',this)">비활성 <span class="count" id="count-inactive">(0)</span></a>
+      </div>
+    </div>
+    <div class="header-right">
+      <button class="btn btn-primary" onclick="switchTab('search')">+ 새 플러그인 추가</button>
+    </div>
+  </div>
+
+  <!-- 탭 -->
+  <div class="nav-tab-wrapper">
+    <button class="nav-tab active" id="tab-installed" onclick="switchTab('installed')">설치된 플러그인</button>
+    <button class="nav-tab" id="tab-search" onclick="switchTab('search')">새 플러그인 추가</button>
+    <button class="nav-tab" id="tab-upload" onclick="switchTab('upload')">플러그인 업로드</button>
+  </div>
+
+  <!-- 설치된 플러그인 탭 -->
+  <div class="nav-tab-content active" id="pane-installed">
+    <div id="plugins-alert" class="alert"></div>
+    <table class="wp-list-table">
+      <thead>
+        <tr>
+          <th style="width:40%;">플러그인</th>
+          <th>설명</th>
+          <th style="width:100px;">버전</th>
+          <th style="width:80px;">상태</th>
+        </tr>
+      </thead>
+      <tbody id="plugins-tbody">
+        <tr><td colspan="4" style="padding:24px;text-align:center;color:#8c8f94;">로딩 중...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 검색 탭 -->
+  <div class="nav-tab-content" id="pane-search">
+    <div class="plugin-search-bar">
+      <input id="search-input" type="text" placeholder="플러그인 검색..." onkeydown="if(event.key==='Enter')searchPlugins()" />
+      <button class="btn btn-primary" onclick="searchPlugins()">검색</button>
+      <div class="browse-btns">
+        <button class="browse-btn active" onclick="browsePlugins('featured',this)">추천</button>
+        <button class="browse-btn" onclick="browsePlugins('popular',this)">인기</button>
+        <button class="browse-btn" onclick="browsePlugins('new',this)">최신</button>
+        <button class="browse-btn" onclick="browsePlugins('updated',this)">최근 업데이트</button>
+      </div>
+    </div>
+    <div id="search-alert" class="alert"></div>
+    <div id="plugins-grid" class="plugins-grid">
+      <div style="grid-column:1/-1;padding:24px;text-align:center;color:#8c8f94;">검색어를 입력하거나 카테고리를 선택하세요.</div>
+    </div>
+    <div id="search-pagination" style="display:flex;justify-content:center;gap:6px;margin-top:16px;"></div>
+  </div>
+
+  <!-- zip 업로드 탭 -->
+  <div class="nav-tab-content" id="pane-upload">
+    <div class="upload-plugin-form">
+      <h3 style="font-size:16px;font-weight:700;color:#fff;margin-bottom:12px;">플러그인 업로드</h3>
+      <p>
+        WordPress.org에 없는 플러그인이 있다면, zip 파일을 업로드하여 설치할 수 있습니다.<br>
+        구입한 프리미엄 플러그인이나 직접 개발한 플러그인을 여기에 업로드하세요.
+      </p>
+      <div id="zip-drop-zone"
+        ondragover="event.preventDefault();this.classList.add('drag-over')"
+        ondragleave="this.classList.remove('drag-over')"
+        ondrop="event.preventDefault();this.classList.remove('drag-over');handleZipDrop(event.dataTransfer.files)"
+        onclick="document.getElementById('zip-file-input').click()">
+        <div class="dz-icon">📦</div>
+        <p><span>클릭</span>하거나 zip 파일을 드래그하세요</p>
+        <p id="zip-label" style="font-size:12px;margin-top:8px;color:#4a545e;">플러그인 zip 파일만 허용 (최대 50MB)</p>
+      </div>
+      <input id="zip-file-input" type="file" accept=".zip" style="display:none" onchange="handleZipSelect(this)" />
+      <div id="upload-alert" class="alert"></div>
+      <button class="btn btn-primary" id="upload-btn" onclick="uploadPlugin()" disabled>지금 설치</button>
+    </div>
+  </div>
+
+  <script>
+    let currentFilter = 'all';
+    let allPlugins = [];
+    let selectedZip = null;
+    let installedSlugs = new Set();
+    let searchPage = 1;
+    let currentBrowse = 'featured';
+    let searchTimer = null;
+
+    function escHtml(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+    function stars(r){return '★'.repeat(Math.round(r/20))+'☆'.repeat(5-Math.round(r/20));}
+    function fmtInstalls(n){if(!n)return'-';if(n>=1000000)return(n/1000000).toFixed(1)+'M+';if(n>=1000)return(n/1000).toFixed(0)+'K+';return n;}
+
+    // ── 탭 전환 ──────────────────────────────────────────────────────────
+    function switchTab(tab) {
+      ['installed','search','upload'].forEach(t => {
+        document.getElementById('tab-'+t).classList.toggle('active', t===tab);
+        document.getElementById('pane-'+t).classList.toggle('active', t===tab);
+      });
+      if (tab === 'search' && document.getElementById('plugins-grid').children.length <= 1) {
+        browsePlugins('featured', document.querySelector('.browse-btn'));
+      }
+    }
+
+    // ── 설치된 플러그인 로드 ──────────────────────────────────────────────
+    async function loadPlugins() {
+      try {
+        const res  = await fetch('/api/plugins');
+        const data = await res.json();
+        allPlugins = data.plugins || [];
+        installedSlugs = new Set(allPlugins.map(p => p.slug));
+        renderPlugins();
+      } catch (e) {
+        document.getElementById('plugins-tbody').innerHTML =
+          `<tr><td colspan="4" style="padding:24px;text-align:center;color:#f87171;">로드 실패: ${escHtml(e.message)}</td></tr>`;
+      }
+    }
+
+    function filterPlugins(filter, el) {
+      currentFilter = filter;
+      document.querySelectorAll('.subsubsub a').forEach(a => a.classList.remove('current'));
+      el.classList.add('current');
+      renderPlugins();
+    }
+
+    function renderPlugins() {
+      const filtered = currentFilter === 'all' ? allPlugins
+        : currentFilter === 'active'   ? allPlugins.filter(p => p.is_active)
+        : allPlugins.filter(p => !p.is_active);
+
+      document.getElementById('count-all').textContent     = `(${allPlugins.length})`;
+      document.getElementById('count-active').textContent  = `(${allPlugins.filter(p => p.is_active).length})`;
+      document.getElementById('count-inactive').textContent= `(${allPlugins.filter(p => !p.is_active).length})`;
+
+      if (!filtered.length) {
+        document.getElementById('plugins-tbody').innerHTML =
+          '<tr><td colspan="4" style="padding:32px;text-align:center;color:#8c8f94;">플러그인이 없습니다.</td></tr>';
+        return;
+      }
+
+      document.getElementById('plugins-tbody').innerHTML = filtered.map(p => `
+        <tr class="${p.is_active ? 'active' : 'inactive'}">
+          <td>
+            <div class="plugin-name">${escHtml(p.plugin_name)}</div>
+            <div class="row-actions">
+              ${p.is_active
+                ? `<button class="deactivate" onclick="togglePlugin('${p.slug}','deactivate','${escHtml(p.plugin_name)}')">비활성화</button>`
+                : `<button onclick="togglePlugin('${p.slug}','activate','${escHtml(p.plugin_name)}')">활성화</button>`
+              }
+              <span class="sep">|</span>
+              <a href="${escHtml(p.plugin_url||'#')}" target="_blank">플러그인 정보</a>
+              <span class="sep">|</span>
+              <button class="deactivate" onclick="deletePlugin('${p.slug}','${escHtml(p.plugin_name)}')">삭제</button>
+            </div>
+          </td>
+          <td><div class="plugin-desc">${escHtml(p.description||'')}</div></td>
+          <td><span class="version-info">v${escHtml(p.version||'')}</span></td>
+          <td><span class="${p.is_active?'status-active':'status-inactive'}">${p.is_active?'● 활성':'○ 비활성'}</span></td>
+        </tr>
+      `).join('');
+    }
+
+    // ── 플러그인 활성화/비활성화 ─────────────────────────────────────────
+    async function togglePlugin(slug, action, name) {
+      const alertEl = document.getElementById('plugins-alert');
+      alertEl.className = 'alert';
+      try {
+        const res  = await fetch(`/api/plugins/${slug}?action=${action}`, { method:'PUT' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || '실패');
+        alertEl.className = 'alert ok';
+        alertEl.textContent = `✅ ${data.message}`;
+        setTimeout(() => { alertEl.className = 'alert'; }, 4000);
+        await loadPlugins();
+      } catch (e) {
+        alertEl.className = 'alert error';
+        alertEl.textContent = e.message;
+      }
+    }
+
+    async function deletePlugin(slug, name) {
+      if (!confirm(`"${name}" 플러그인을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
+      const alertEl = document.getElementById('plugins-alert');
+      alertEl.className = 'alert';
+      try {
+        const res = await fetch(`/api/plugins/${slug}`, { method:'DELETE' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || '삭제 실패');
+        alertEl.className = 'alert ok';
+        alertEl.textContent = `✅ ${data.message}`;
+        setTimeout(() => { alertEl.className = 'alert'; }, 4000);
+        await loadPlugins();
+      } catch (e) {
+        alertEl.className = 'alert error';
+        alertEl.textContent = e.message;
+      }
+    }
+
+    // ── WordPress.org 검색 ────────────────────────────────────────────────
+    async function searchPlugins() {
+      const q = document.getElementById('search-input').value.trim();
+      if (!q) return;
+      searchPage = 1;
+      currentBrowse = '';
+      document.querySelectorAll('.browse-btn').forEach(b => b.classList.remove('active'));
+      await fetchAndRenderSearch(q, '', 1);
+    }
+
+    async function browsePlugins(browse, btn) {
+      currentBrowse = browse;
+      searchPage    = 1;
+      document.getElementById('search-input').value = '';
+      document.querySelectorAll('.browse-btn').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+      await fetchAndRenderSearch('', browse, 1);
+    }
+
+    async function fetchAndRenderSearch(q, browse, page) {
+      const grid = document.getElementById('plugins-grid');
+      grid.innerHTML = `<div style="grid-column:1/-1;padding:32px;text-align:center;color:#8c8f94;"><span class="spinner"></span>검색 중...</div>`;
+
+      const params = new URLSearchParams({ page, per_page: 12 });
+      if (q)      params.set('q', q);
+      if (browse) params.set('browse', browse);
+
+      try {
+        const res  = await fetch('/api/plugins/search?' + params);
+        const data = await res.json();
+        const plugins = data.plugins || [];
+
+        if (!plugins.length) {
+          grid.innerHTML = `<div style="grid-column:1/-1;padding:32px;text-align:center;color:#8c8f94;">검색 결과가 없습니다.</div>`;
+          return;
+        }
+
+        grid.innerHTML = plugins.map(p => {
+          const isInstalled = installedSlugs.has(p.slug);
+          const icon = p.icons?.['1x'] || p.icons?.['2x'] || '';
+          return `
+            <div class="plugin-card">
+              <div class="plugin-card-header">
+                ${icon
+                  ? `<img class="plugin-icon" src="${escHtml(icon)}" alt="" />`
+                  : `<div class="plugin-icon-ph">🔌</div>`}
+                <div>
+                  <div class="plugin-card-title">${escHtml(p.name)}</div>
+                  <div class="plugin-card-author">by ${escHtml(p.author||'')}</div>
+                </div>
+              </div>
+              <div class="plugin-card-desc">${escHtml(p.short_description||'')}</div>
+              <div class="plugin-card-meta">
+                <span class="rating-stars">${stars(p.rating||0)}</span>
+                <span>${escHtml(String(p.num_ratings||0))} 평점</span>
+                <span>📥 ${fmtInstalls(p.active_installs)}</span>
+              </div>
+              <div class="plugin-card-actions">
+                ${isInstalled
+                  ? `<button class="btn-installed" disabled>✅ 설치됨</button>`
+                  : `<button class="btn-install" onclick="installPlugin('${p.slug}','${escHtml(p.name)}',this)">지금 설치</button>`
+                }
+                <a class="btn-details" href="https://wordpress.org/plugins/${p.slug}/" target="_blank">자세히 보기</a>
+              </div>
+            </div>`;
+        }).join('');
+
+        // 페이지네이션
+        const totalPages = Math.ceil((data.total || 0) / 12);
+        renderSearchPagination(totalPages, q, browse);
+      } catch (e) {
+        grid.innerHTML = `<div style="grid-column:1/-1;padding:24px;text-align:center;color:#f87171;">오류: ${escHtml(e.message)}</div>`;
+      }
+    }
+
+    function renderSearchPagination(total, q, browse) {
+      const el = document.getElementById('search-pagination');
+      if (total <= 1) { el.innerHTML = ''; return; }
+      let html = '';
+      for (let i = 1; i <= Math.min(total, 10); i++) {
+        html += `<button style="background:${i===searchPage?'#2271b1':'#2c3338'};border:1px solid #3c434a;border-radius:4px;padding:5px 10px;color:#fff;cursor:pointer;font-size:12px;" onclick="gotoSearchPage(${i},'${escHtml(q)}','${escHtml(browse)}')">${i}</button>`;
+      }
+      el.innerHTML = html;
+    }
+
+    async function gotoSearchPage(page, q, browse) {
+      searchPage = page;
+      await fetchAndRenderSearch(q, browse, page);
+    }
+
+    async function installPlugin(slug, name, btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span>설치 중...';
+      const alertEl = document.getElementById('search-alert');
+      alertEl.className = 'alert';
+      try {
+        const res  = await fetch('/api/plugins', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ source: 'wordpress_org', slug }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || '설치 실패');
+        btn.className     = 'btn-installed';
+        btn.textContent   = '✅ 설치됨';
+        btn.disabled      = true;
+        installedSlugs.add(slug);
+        alertEl.className = 'alert ok';
+        alertEl.textContent = `✅ ${data.message}`;
+        setTimeout(() => { alertEl.className = 'alert'; }, 5000);
+        await loadPlugins();
+      } catch (e) {
+        btn.disabled = false;
+        btn.textContent = '지금 설치';
+        alertEl.className = 'alert error';
+        alertEl.textContent = e.message;
+      }
+    }
+
+    // ── zip 업로드 ────────────────────────────────────────────────────────
+    function handleZipSelect(input) {
+      const file = input.files?.[0];
+      if (!file) return;
+      if (!file.name.endsWith('.zip')) { showUploadAlert('error','zip 파일만 허용됩니다.'); return; }
+      if (file.size > 50*1024*1024) { showUploadAlert('error','50MB를 초과합니다.'); return; }
+      selectedZip = file;
+      document.getElementById('zip-label').textContent = `선택됨: ${file.name} (${(file.size/1024/1024).toFixed(2)} MB)`;
+      document.getElementById('upload-btn').disabled = false;
+    }
+
+    function handleZipDrop(files) {
+      const input = document.getElementById('zip-file-input');
+      const dt = new DataTransfer(); dt.items.add(files[0]);
+      input.files = dt.files;
+      handleZipSelect(input);
+    }
+
+    async function uploadPlugin() {
+      if (!selectedZip) return;
+      const btn = document.getElementById('upload-btn');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span>업로드 중...';
+      showUploadAlert('', '');
+
+      try {
+        const base64 = await new Promise((res, rej) => {
+          const r = new FileReader();
+          r.onload  = () => res(r.result.split(',')[1]);
+          r.onerror = rej;
+          r.readAsDataURL(selectedZip);
+        });
+        const resp = await fetch('/api/plugins', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ source:'zip', filename:selectedZip.name, data:base64, size:selectedZip.size }),
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || '설치 실패');
+        showUploadAlert('ok', `✅ ${data.message}`);
+        selectedZip = null;
+        document.getElementById('zip-file-input').value = '';
+        document.getElementById('zip-label').textContent = '플러그인 zip 파일만 허용 (최대 50MB)';
+        await loadPlugins();
+        setTimeout(() => switchTab('installed'), 1500);
+      } catch (e) {
+        showUploadAlert('error', e.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '지금 설치';
+      }
+    }
+
+    function showUploadAlert(type, msg) {
+      const el = document.getElementById('upload-alert');
+      el.className = type ? 'alert ' + type : 'alert';
+      el.textContent = msg;
+    }
+
+    // ── 초기 로드 ─────────────────────────────────────────────────────────
+    loadPlugins();
+    browsePlugins('featured', document.querySelector('.browse-btn'));
+  </script>
+</CmsLayout>
