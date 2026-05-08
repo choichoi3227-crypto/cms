@@ -1,0 +1,239 @@
+---
+// src/pages/admin/tools.astro
+export const prerender = false;
+import CmsLayout from '../../layouts/CmsLayout.astro';
+---
+<CmsLayout title="도구" activeMenu="tools">
+  <style>
+    h2 { font-size:20px;font-weight:700;color:#fff;margin-bottom:20px; }
+    .nav-tab-wrapper { border-bottom:1px solid #3c434a;margin-bottom:20px;display:flex;gap:0; }
+    .nav-tab { padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid transparent;border-bottom:none;color:#8c8f94;background:transparent;border-radius:4px 4px 0 0;margin-bottom:-1px;transition:all .15s; }
+    .nav-tab.active,.nav-tab:hover { color:#fff;background:#2c3338;border-color:#3c434a;border-bottom-color:#2c3338; }
+    .nav-tab-content { display:none; }
+    .nav-tab-content.active { display:block; }
+    .card { background:#2c3338;border:1px solid #3c434a;border-radius:4px;padding:20px;margin-bottom:16px; }
+    .card h3 { font-size:15px;font-weight:700;color:#fff;margin-bottom:12px; }
+    .card p { font-size:13px;color:#8c8f94;margin-bottom:14px;line-height:1.6; }
+    .btn { border-radius:4px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;border:1px solid;transition:all .15s; }
+    .btn-primary { background:#2271b1;color:#fff;border-color:#2271b1; }
+    .btn-primary:hover { background:#135e96; }
+    .btn-secondary { background:transparent;color:#c3c4c7;border-color:#3c434a; }
+    .btn-secondary:hover { border-color:#2271b1;color:#fff; }
+    .alert { padding:10px 14px;border-radius:4px;font-size:13px;margin-bottom:14px;display:none; }
+    .alert.ok    { background:#1a3020;border:1px solid #208b45;color:#4ade80;display:block; }
+    .alert.error { background:#3b1f1f;border:1px solid #8b2020;color:#f87171;display:block; }
+    .export-options { display:flex;flex-wrap:wrap;gap:12px;margin-bottom:16px; }
+    .export-option { display:flex;align-items:center;gap:6px;font-size:13px;color:#c3c4c7;cursor:pointer; }
+    .export-option input { width:auto; }
+    .tool-box { border:1px solid #3c434a;border-radius:4px;padding:14px;margin-bottom:12px; }
+    .tool-box h4 { font-size:13px;font-weight:700;color:#fff;margin-bottom:6px; }
+    .tool-box p { font-size:12px;color:#8c8f94;margin-bottom:10px; }
+    .import-form { display:flex;flex-direction:column;gap:10px; }
+    .import-form input[type="file"] { background:#1d2327;border:1px solid #3c434a;border-radius:4px;padding:8px;color:#c3c4c7;font-size:13px; }
+    .db-info { display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:14px; }
+    .db-stat { background:#1d2327;border:1px solid #3c434a;border-radius:4px;padding:12px;text-align:center; }
+    .db-stat-num { font-size:24px;font-weight:800;color:#2271b1; }
+    .db-stat-label { font-size:11px;color:#8c8f94;margin-top:3px; }
+    .spinner { display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;margin-right:6px; }
+    @keyframes spin { to{transform:rotate(360deg)} }
+  </style>
+
+  <h2>도구</h2>
+  <div class="nav-tab-wrapper">
+    <button class="nav-tab active" id="tab-available" onclick="switchTab('available')">사용 가능한 도구</button>
+    <button class="nav-tab" id="tab-import" onclick="switchTab('import')">가져오기</button>
+    <button class="nav-tab" id="tab-export" onclick="switchTab('export')">내보내기</button>
+    <button class="nav-tab" id="tab-health" onclick="switchTab('health')">사이트 상태</button>
+  </div>
+
+  <!-- 사용 가능한 도구 -->
+  <div class="nav-tab-content active" id="pane-available">
+    <div class="card">
+      <h3>카테고리와 태그 변환기</h3>
+      <p>카테고리와 태그를 서로 변환할 수 있습니다. 카테고리를 태그로, 태그를 카테고리로 변환하세요.</p>
+      <a href="/admin/tools/converter" class="btn btn-secondary">변환기 열기</a>
+    </div>
+    <div class="card">
+      <h3>비밀번호 재설정</h3>
+      <p>관리자 비밀번호를 재설정합니다.</p>
+      <button class="btn btn-secondary" onclick="window.location.href='/admin/settings?tab=account'">비밀번호 변경</button>
+    </div>
+    <div class="card">
+      <h3>D1 데이터베이스 정보</h3>
+      <p>현재 Cloudflare D1 데이터베이스 사용 현황입니다.</p>
+      <div class="db-info" id="db-info">
+        <div style="grid-column:1/-1;text-align:center;color:#8c8f94;padding:12px;">로딩 중...</div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>캐시 비우기</h3>
+      <p>Cloudflare KV 캐시를 비웁니다. 사이트가 즉시 최신 데이터를 표시합니다.</p>
+      <div id="cache-alert" class="alert"></div>
+      <button class="btn btn-secondary" id="clear-cache-btn" onclick="clearCache()">캐시 비우기</button>
+    </div>
+  </div>
+
+  <!-- 가져오기 -->
+  <div class="nav-tab-content" id="pane-import">
+    <div class="card">
+      <h3>WordPress XML 가져오기</h3>
+      <p>다른 WordPress 사이트에서 내보낸 .xml 파일(WXR 형식)을 가져올 수 있습니다. 글, 페이지, 댓글, 카테고리, 태그가 모두 가져와집니다.</p>
+      <div id="import-alert" class="alert"></div>
+      <div class="import-form">
+        <input type="file" id="import-file" accept=".xml" />
+        <button class="btn btn-primary" onclick="importWXR()">파일 업로드 및 가져오기</button>
+      </div>
+    </div>
+    <div class="card">
+      <h3>JSON 가져오기</h3>
+      <p>CloudPress에서 내보낸 JSON 파일을 가져옵니다.</p>
+      <div class="import-form">
+        <input type="file" id="import-json-file" accept=".json" />
+        <button class="btn btn-primary" onclick="importJSON()">JSON 가져오기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 내보내기 -->
+  <div class="nav-tab-content" id="pane-export">
+    <div class="card">
+      <h3>내보내기</h3>
+      <p>사이트의 콘텐츠를 XML 또는 JSON 파일로 내보냅니다. 이 파일을 사용해 다른 WordPress 또는 CloudPress 사이트로 가져올 수 있습니다.</p>
+      <div id="export-alert" class="alert"></div>
+      <div class="export-options">
+        <label class="export-option"><input type="radio" name="export-what" value="all" checked /> 모든 콘텐츠</label>
+        <label class="export-option"><input type="radio" name="export-what" value="posts" /> 글</label>
+        <label class="export-option"><input type="radio" name="export-what" value="pages" /> 페이지</label>
+        <label class="export-option"><input type="radio" name="export-what" value="media" /> 미디어</label>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="exportContent('xml')">XML 내보내기 (WordPress 호환)</button>
+        <button class="btn btn-secondary" onclick="exportContent('json')">JSON 내보내기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 사이트 상태 -->
+  <div class="nav-tab-content" id="pane-health">
+    <div class="card">
+      <h3>사이트 상태 점검</h3>
+      <p>사이트의 전반적인 상태를 점검합니다.</p>
+      <button class="btn btn-primary" onclick="runHealthCheck()">상태 점검 실행</button>
+    </div>
+    <div id="health-results"></div>
+  </div>
+
+  <script>
+    function escHtml(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+    function switchTab(tab) {
+      ['available','import','export','health'].forEach(t => {
+        document.getElementById('tab-'+t).classList.toggle('active', t===tab);
+        document.getElementById('pane-'+t).classList.toggle('active', t===tab);
+      });
+    }
+
+    async function loadDbInfo() {
+      try {
+        const res  = await fetch('/api/tools/db-info');
+        const data = await res.json();
+        const el   = document.getElementById('db-info');
+        el.innerHTML = [
+          { num: data.posts||0,    label: '게시글' },
+          { num: data.pages||0,    label: '페이지' },
+          { num: data.media||0,    label: '미디어' },
+          { num: data.comments||0, label: '댓글' },
+          { num: data.users||0,    label: '사용자' },
+          { num: data.terms||0,    label: '분류' },
+        ].map(s => `<div class="db-stat"><div class="db-stat-num">${s.num}</div><div class="db-stat-label">${s.label}</div></div>`).join('');
+      } catch { document.getElementById('db-info').innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#f87171;">로드 실패</div>'; }
+    }
+
+    async function clearCache() {
+      const btn     = document.getElementById('clear-cache-btn');
+      const alertEl = document.getElementById('cache-alert');
+      btn.innerHTML = '<span class="spinner"></span>처리 중...';
+      btn.disabled  = true;
+      alertEl.className = 'alert';
+      try {
+        const res  = await fetch('/api/tools/clear-cache', { method:'POST' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error||'실패');
+        alertEl.className = 'alert ok';
+        alertEl.textContent = '✅ 캐시가 비워졌습니다.';
+        setTimeout(()=>{alertEl.className='alert';},3000);
+      } catch (e) { alertEl.className='alert error'; alertEl.textContent=e.message; }
+      finally { btn.textContent='캐시 비우기'; btn.disabled=false; }
+    }
+
+    async function exportContent(format) {
+      const what    = document.querySelector('input[name="export-what"]:checked')?.value || 'all';
+      const alertEl = document.getElementById('export-alert');
+      alertEl.className = 'alert';
+      try {
+        const res = await fetch(`/api/tools/export?what=${what}&format=${format}`);
+        if (!res.ok) throw new Error((await res.json()).error||'내보내기 실패');
+        const blob = await res.blob();
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href     = url;
+        a.download = `cloudpress-export-${new Date().toISOString().slice(0,10)}.${format}`;
+        a.click();
+        URL.revokeObjectURL(url);
+        alertEl.className = 'alert ok';
+        alertEl.textContent = '✅ 내보내기 완료.';
+        setTimeout(()=>{alertEl.className='alert';},3000);
+      } catch (e) { alertEl.className='alert error'; alertEl.textContent=e.message; }
+    }
+
+    async function importWXR() {
+      const file    = document.getElementById('import-file').files?.[0];
+      const alertEl = document.getElementById('import-alert');
+      alertEl.className = 'alert';
+      if (!file) { alertEl.className='alert error'; alertEl.textContent='파일을 선택해주세요.'; return; }
+      const text = await file.text();
+      try {
+        const res  = await fetch('/api/tools/import', { method:'POST', headers:{'Content-Type':'application/xml'}, body:text });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error||'가져오기 실패');
+        alertEl.className='alert ok'; alertEl.textContent=`✅ 가져오기 완료: 글 ${data.posts||0}개, 페이지 ${data.pages||0}개, 댓글 ${data.comments||0}개`;
+        document.getElementById('import-file').value = '';
+      } catch (e) { alertEl.className='alert error'; alertEl.textContent=e.message; }
+    }
+
+    async function importJSON() {
+      const file    = document.getElementById('import-json-file').files?.[0];
+      const alertEl = document.getElementById('import-alert');
+      alertEl.className = 'alert';
+      if (!file) { alertEl.className='alert error'; alertEl.textContent='파일을 선택해주세요.'; return; }
+      try {
+        const json = JSON.parse(await file.text());
+        const res  = await fetch('/api/tools/import-json', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(json) });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error||'가져오기 실패');
+        alertEl.className='alert ok'; alertEl.textContent=`✅ JSON 가져오기 완료.`;
+        document.getElementById('import-json-file').value = '';
+      } catch (e) { alertEl.className='alert error'; alertEl.textContent=e.message; }
+    }
+
+    async function runHealthCheck() {
+      const el = document.getElementById('health-results');
+      el.innerHTML = '<div style="text-align:center;padding:20px;color:#8c8f94;"><span class="spinner"></span>점검 중...</div>';
+      try {
+        const res  = await fetch('/api/tools/health');
+        const data = await res.json();
+        const checks = data.checks || [];
+        el.innerHTML = checks.map(c => `
+          <div class="tool-box">
+            <h4>${c.icon||'•'} ${escHtml(c.label)}</h4>
+            <p>${escHtml(c.description)}</p>
+            <span style="font-size:12px;font-weight:700;color:${c.status==='good'?'#00a32a':c.status==='warning'?'#dba617':'#d63638'};">
+              ${c.status==='good'?'✅ 정상':c.status==='warning'?'⚠️ 주의':'❌ 오류'}
+            </span>
+          </div>`).join('');
+      } catch (e) { el.innerHTML = `<div class="card" style="color:#f87171;">점검 실패: ${escHtml(e.message)}</div>`; }
+    }
+
+    loadDbInfo();
+  </script>
+</CmsLayout>
