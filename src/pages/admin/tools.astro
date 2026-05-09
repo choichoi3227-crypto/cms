@@ -43,6 +43,7 @@ import CmsLayout from '../../layouts/CmsLayout.astro';
     <button class="nav-tab active" id="tab-available" onclick="switchTab('available')">사용 가능한 도구</button>
     <button class="nav-tab" id="tab-import" onclick="switchTab('import')">가져오기</button>
     <button class="nav-tab" id="tab-export" onclick="switchTab('export')">내보내기</button>
+    <button class="nav-tab" id="tab-astro" onclick="switchTab('astro')">⚡ Astro 변환</button>
     <button class="nav-tab" id="tab-health" onclick="switchTab('health')">사이트 상태</button>
   </div>
 
@@ -113,6 +114,88 @@ import CmsLayout from '../../layouts/CmsLayout.astro';
     </div>
   </div>
 
+  <!-- Astro 변환 -->
+  <div class="nav-tab-content" id="pane-astro">
+    <div class="card">
+      <h3>⚡ Astro 정적 사이트 변환</h3>
+      <p>현재 CMS의 글·페이지·미디어 콘텐츠를 <strong style="color:#fff;">Astro</strong> 프로젝트 구조로 자동 변환합니다.<br>
+         변환된 파일은 GitHub Pages 등 정적 호스팅에 바로 배포할 수 있습니다.</p>
+
+      <div id="astro-alert" class="alert"></div>
+
+      <!-- 변환 옵션 -->
+      <div style="display:grid;gap:14px;margin-bottom:18px;">
+        <div class="tool-box" style="margin-bottom:0;">
+          <h4>📝 포함할 콘텐츠</h4>
+          <div class="export-options" style="margin-bottom:0;">
+            <label class="export-option"><input type="checkbox" id="astro-inc-posts"  checked /> 글 (posts)</label>
+            <label class="export-option"><input type="checkbox" id="astro-inc-pages"  checked /> 페이지</label>
+            <label class="export-option"><input type="checkbox" id="astro-inc-media"  checked /> 미디어 목록</label>
+            <label class="export-option"><input type="checkbox" id="astro-inc-tags"   checked /> 태그 / 카테고리</label>
+          </div>
+        </div>
+
+        <div class="tool-box" style="margin-bottom:0;">
+          <h4>🎨 출력 형식</h4>
+          <div class="export-options" style="margin-bottom:0;">
+            <label class="export-option"><input type="radio" name="astro-format" value="md"  checked /> Markdown (콘텐츠 컬렉션)</label>
+            <label class="export-option"><input type="radio" name="astro-format" value="mdx" /> MDX (컴포넌트 지원)</label>
+          </div>
+        </div>
+
+        <div class="tool-box" style="margin-bottom:0;">
+          <h4>⚙️ Astro 프로젝트 설정</h4>
+          <div style="display:grid;gap:8px;">
+            <label style="font-size:12px;color:#8c8f94;">사이트 제목</label>
+            <input type="text" id="astro-site-title" placeholder="내 Astro 사이트"
+              style="background:#1d2327;border:1px solid #3c434a;border-radius:4px;padding:8px 10px;color:#c3c4c7;font-size:13px;width:100%;box-sizing:border-box;">
+            <label style="font-size:12px;color:#8c8f94;margin-top:4px;">사이트 URL (GitHub Pages: https://username.github.io/repo)</label>
+            <input type="text" id="astro-site-url" placeholder="https://example.com"
+              style="background:#1d2327;border:1px solid #3c434a;border-radius:4px;padding:8px 10px;color:#c3c4c7;font-size:13px;width:100%;box-sizing:border-box;">
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+        <button class="btn btn-primary" onclick="startAstroConvert()" id="astro-btn">
+          ⚡ Astro 프로젝트 생성
+        </button>
+        <button class="btn btn-secondary" onclick="previewAstroStructure()">
+          📂 파일 구조 미리보기
+        </button>
+      </div>
+
+      <!-- 진행 상황 -->
+      <div id="astro-progress" style="display:none;margin-top:16px;">
+        <div style="font-size:12px;color:#8c8f94;margin-bottom:8px;">변환 진행 중...</div>
+        <div style="background:#1d2327;border-radius:4px;height:8px;overflow:hidden;">
+          <div id="astro-bar" style="height:100%;background:#2271b1;width:0%;transition:width .3s;"></div>
+        </div>
+        <div id="astro-log" style="margin-top:10px;background:#1d2327;border:1px solid #3c434a;border-radius:4px;padding:10px;font-size:11px;font-family:monospace;color:#8c8f94;max-height:140px;overflow-y:auto;"></div>
+      </div>
+
+      <!-- 미리보기 -->
+      <div id="astro-preview" style="display:none;margin-top:16px;">
+        <div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:8px;">📂 생성될 파일 구조</div>
+        <pre id="astro-tree" style="background:#1d2327;border:1px solid #3c434a;border-radius:4px;padding:12px;font-size:11px;color:#c3c4c7;overflow-x:auto;white-space:pre;line-height:1.6;"></pre>
+      </div>
+    </div>
+
+    <!-- 변환 가이드 -->
+    <div class="card">
+      <h3>📖 Astro 배포 가이드</h3>
+      <div style="font-size:13px;color:#8c8f94;line-height:1.8;">
+        <ol style="padding-left:18px;display:grid;gap:6px;">
+          <li>위 버튼으로 Astro 프로젝트 ZIP을 다운로드합니다</li>
+          <li>GitHub에 새 레포지토리를 만들고 파일을 업로드합니다</li>
+          <li>레포 Settings → Pages → Source를 <code style="background:#1d2327;padding:1px 5px;border-radius:3px;">GitHub Actions</code>로 설정합니다</li>
+          <li>포함된 <code style="background:#1d2327;padding:1px 5px;border-radius:3px;">.github/workflows/deploy.yml</code>이 자동으로 빌드·배포합니다</li>
+          <li>커스텀 도메인은 CloudPress 도메인 관리에서 연결하세요</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+
   <!-- 사이트 상태 -->
   <div class="nav-tab-content" id="pane-health">
     <div class="card">
@@ -127,7 +210,7 @@ import CmsLayout from '../../layouts/CmsLayout.astro';
     function escHtml(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 
     function switchTab(tab) {
-      ['available','import','export','health'].forEach(t => {
+      ['available','import','export','astro','health'].forEach(t => {
         document.getElementById('tab-'+t).classList.toggle('active', t===tab);
         document.getElementById('pane-'+t).classList.toggle('active', t===tab);
       });
@@ -233,6 +316,615 @@ import CmsLayout from '../../layouts/CmsLayout.astro';
           </div>`).join('');
       } catch (e) { el.innerHTML = `<div class="card" style="color:#f87171;">점검 실패: ${escHtml(e.message)}</div>`; }
     }
+
+
+    // ── Astro 변환 ───────────────────────────────────────────────────────────
+
+    function astroLog(msg) {
+      const el = document.getElementById('astro-log');
+      el.textContent += msg + '\n';
+      el.scrollTop = el.scrollHeight;
+    }
+    function astroBar(pct) {
+      document.getElementById('astro-bar').style.width = pct + '%';
+    }
+    function astroAlert(msg, type) {
+      const el = document.getElementById('astro-alert');
+      el.className = 'alert ' + type;
+      el.textContent = msg;
+    }
+
+    async function previewAstroStructure() {
+      const fmt      = document.querySelector('input[name="astro-format"]:checked')?.value || 'md';
+      const incPosts = document.getElementById('astro-inc-posts').checked;
+      const incPages = document.getElementById('astro-inc-pages').checked;
+      const incMedia = document.getElementById('astro-inc-media').checked;
+      const incTags  = document.getElementById('astro-inc-tags').checked;
+      const siteTitle = document.getElementById('astro-site-title').value || 'My Astro Site';
+
+      const tree = `my-astro-site/
+├── .github/
+│   └── workflows/
+│       └── deploy.yml          ← GitHub Actions 자동 배포
+├── public/
+│   └── favicon.svg
+├── src/
+│   ├── content/
+│   │   ├── config.ts           ← 콘텐츠 컬렉션 설정
+${incPosts ? '│   │   ├── posts/              ← 블로그 글 (' + fmt.toUpperCase() + ')\n' : ''}${incPages ? '│   │   ├── pages/              ← 페이지 (' + fmt.toUpperCase() + ')\n' : ''}${incTags  ? '│   │   └── taxonomy.json       ← 태그 / 카테고리\n' : ''}│   ├── layouts/
+│   │   ├── BaseLayout.astro
+│   │   ├── PostLayout.astro
+│   │   └── PageLayout.astro
+│   ├── pages/
+│   │   ├── index.astro         ← 홈 (글 목록)
+│   │   ├── blog/
+│   │   │   ├── index.astro     ← 블로그 목록
+│   │   │   └── [...slug].astro ← 글 상세
+│   │   ├── [slug].astro        ← 페이지 상세
+${incTags ? '│   │   └── tags/\n│   │       └── [tag].astro   ← 태그 목록\n' : ''}│   └── styles/
+│       └── global.css
+├── astro.config.mjs
+├── package.json
+└── tsconfig.json`;
+
+      document.getElementById('astro-tree').textContent = tree;
+      document.getElementById('astro-preview').style.display = 'block';
+    }
+
+    async function startAstroConvert() {
+      const btn      = document.getElementById('astro-btn');
+      const alertEl  = document.getElementById('astro-alert');
+      const progress = document.getElementById('astro-progress');
+      const logEl    = document.getElementById('astro-log');
+
+      const fmt       = document.querySelector('input[name="astro-format"]:checked')?.value || 'md';
+      const incPosts  = document.getElementById('astro-inc-posts').checked;
+      const incPages  = document.getElementById('astro-inc-pages').checked;
+      const incMedia  = document.getElementById('astro-inc-media').checked;
+      const incTags   = document.getElementById('astro-inc-tags').checked;
+      const siteTitle = document.getElementById('astro-site-title').value.trim() || 'My Astro Site';
+      const siteUrl   = document.getElementById('astro-site-url').value.trim() || 'https://example.com';
+
+      btn.disabled = true;
+      btn.textContent = '⏳ 변환 중...';
+      alertEl.className = 'alert';
+      logEl.textContent = '';
+      progress.style.display = 'block';
+      astroBar(0);
+
+      try {
+        // 1) 콘텐츠 수집
+        astroLog('📦 콘텐츠 수집 중...');
+        astroBar(10);
+
+        const [postsRes, pagesRes, tagsRes, catsRes, settingsRes] = await Promise.all([
+          incPosts ? fetch('/api/posts?per_page=999&status=publish').then(r=>r.json()).catch(()=>({posts:[]})) : {posts:[]},
+          incPages ? fetch('/api/posts?post_type=page&per_page=999&status=publish').then(r=>r.json()).catch(()=>({posts:[]})) : {posts:[]},
+          incTags  ? fetch('/api/terms?taxonomy=post_tag&per_page=999').then(r=>r.json()).catch(()=>({terms:[]})) : {terms:[]},
+          incTags  ? fetch('/api/terms?taxonomy=category&per_page=999').then(r=>r.json()).catch(()=>({terms:[]})) : {terms:[]},
+          fetch('/api/settings').then(r=>r.json()).catch(()=>({})),
+        ]);
+
+        const posts    = postsRes.posts || [];
+        const pages    = pagesRes.posts || [];
+        const tags     = tagsRes.terms  || [];
+        const cats     = catsRes.terms  || [];
+        const settings = settingsRes;
+
+        astroLog(`✅ 글 ${posts.length}개, 페이지 ${pages.length}개, 태그 ${tags.length}개, 카테고리 ${cats.length}개 수집`);
+        astroBar(30);
+
+        // 2) 파일 내용 생성 (인메모리 ZIP 구조)
+        astroLog('🔨 Astro 파일 생성 중...');
+        const files = {};
+
+        // package.json
+        files['package.json'] = JSON.stringify({
+          name: siteTitle.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
+          type: 'module',
+          version: '0.0.1',
+          scripts: { dev: 'astro dev', build: 'astro build', preview: 'astro preview' },
+          dependencies: { astro: '^4.0.0', '@astrojs/sitemap': '^3.0.0' },
+        }, null, 2);
+
+        // astro.config.mjs
+        files['astro.config.mjs'] = `import { defineConfig } from 'astro/config';
+import sitemap from '@astrojs/sitemap';
+
+export default defineConfig({
+  site: '${siteUrl}',
+  integrations: [sitemap()],
+  output: 'static',
+});
+`;
+
+        // tsconfig.json
+        files['tsconfig.json'] = JSON.stringify({
+          extends: 'astro/tsconfigs/base',
+          compilerOptions: { strictNullChecks: true },
+        }, null, 2);
+
+        // .github/workflows/deploy.yml
+        files['.github/workflows/deploy.yml'] = `name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: \${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/deploy-pages@v4
+        id: deployment
+`;
+
+        // src/content/config.ts
+        files['src/content/config.ts'] = `import { defineCollection, z } from 'astro:content';
+
+const posts = defineCollection({
+  type: 'content',
+  schema: z.object({
+    title:       z.string(),
+    description: z.string().optional(),
+    pubDate:     z.coerce.date(),
+    updatedDate: z.coerce.date().optional(),
+    author:      z.string().optional(),
+    tags:        z.array(z.string()).default([]),
+    categories:  z.array(z.string()).default([]),
+    draft:       z.boolean().default(false),
+    image:       z.string().optional(),
+  }),
+});
+
+const pages = defineCollection({
+  type: 'content',
+  schema: z.object({
+    title:       z.string(),
+    description: z.string().optional(),
+    pubDate:     z.coerce.date(),
+    draft:       z.boolean().default(false),
+  }),
+});
+
+export const collections = { posts, pages };
+`;
+
+        // src/styles/global.css
+        files['src/styles/global.css'] = `/* Global styles — customize freely */
+*, *::before, *::after { box-sizing: border-box; margin: 0; }
+body { font-family: system-ui, -apple-system, sans-serif; line-height: 1.7; color: #222; background: #fff; }
+a { color: #2563eb; }
+h1,h2,h3,h4 { line-height: 1.3; margin: 1.5rem 0 0.75rem; }
+p { margin-bottom: 1rem; }
+img { max-width: 100%; height: auto; }
+pre { overflow-x: auto; padding: 1rem; background: #f4f4f4; border-radius: 4px; }
+code { background: #f4f4f4; padding: 2px 5px; border-radius: 3px; font-size: 0.9em; }
+.container { max-width: 820px; margin: 0 auto; padding: 0 1.5rem; }
+nav a { margin-right: 1.5rem; text-decoration: none; font-weight: 600; }
+footer { margin-top: 4rem; padding: 2rem 0; border-top: 1px solid #eee; text-align: center; color: #888; font-size: 0.875rem; }
+`;
+
+        // src/layouts/BaseLayout.astro
+        files['src/layouts/BaseLayout.astro'] = `---
+interface Props { title: string; description?: string; }
+const { title, description = '' } = Astro.props;
+const siteTitle = '${escHtml(siteTitle)}';
+---
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{title} — {siteTitle}</title>
+  {description && <meta name="description" content={description} />}
+  <link rel="sitemap" href="/sitemap-index.xml" />
+  <link rel="stylesheet" href="/styles/global.css">
+</head>
+<body>
+  <header style="border-bottom:1px solid #eee;padding:1rem 0;margin-bottom:2rem;">
+    <div class="container" style="display:flex;justify-content:space-between;align-items:center;">
+      <a href="/" style="font-size:1.25rem;font-weight:800;text-decoration:none;color:#111;">{siteTitle}</a>
+      <nav>
+        <a href="/">홈</a>
+        <a href="/blog">블로그</a>
+      </nav>
+    </div>
+  </header>
+  <main class="container">
+    <slot />
+  </main>
+  <footer>
+    <p>© {new Date().getFullYear()} {siteTitle}</p>
+  </footer>
+</body>
+</html>
+`;
+
+        // src/layouts/PostLayout.astro
+        files['src/layouts/PostLayout.astro'] = `---
+import BaseLayout from './BaseLayout.astro';
+import type { CollectionEntry } from 'astro:content';
+interface Props { post: CollectionEntry<'posts'>; }
+const { post } = Astro.props;
+const { title, description, pubDate, author, tags } = post.data;
+---
+<BaseLayout title={title} description={description}>
+  <article>
+    <header style="margin-bottom:2rem;">
+      <h1 style="font-size:2rem;font-weight:800;margin-bottom:0.5rem;">{title}</h1>
+      <div style="color:#888;font-size:0.875rem;display:flex;gap:1rem;flex-wrap:wrap;">
+        <time datetime={pubDate.toISOString()}>{pubDate.toLocaleDateString('ko-KR')}</time>
+        {author && <span>by {author}</span>}
+        {tags.length > 0 && (
+          <span>{tags.map(t => <a href={\`/tags/\${t}\`} style="color:#2563eb;margin-right:4px;">#{t}</a>)}</span>
+        )}
+      </div>
+    </header>
+    <div class="prose">
+      <slot />
+    </div>
+  </article>
+  <div style="margin-top:3rem;padding-top:2rem;border-top:1px solid #eee;">
+    <a href="/blog">← 목록으로</a>
+  </div>
+</BaseLayout>
+`;
+
+        // src/layouts/PageLayout.astro
+        files['src/layouts/PageLayout.astro'] = `---
+import BaseLayout from './BaseLayout.astro';
+import type { CollectionEntry } from 'astro:content';
+interface Props { page: CollectionEntry<'pages'>; }
+const { page } = Astro.props;
+const { title, description } = page.data;
+---
+<BaseLayout title={title} description={description}>
+  <article>
+    <h1 style="font-size:2rem;font-weight:800;margin-bottom:2rem;">{title}</h1>
+    <div class="prose"><slot /></div>
+  </article>
+</BaseLayout>
+`;
+
+        astroBar(50);
+
+        // 글 파일 생성
+        function htmlToMarkdown(html) {
+          if (!html) return '';
+          return html
+            .replace(/<br\s*\/?>/gi, '\n')
+            .replace(/<\/p>/gi, '\n\n')
+            .replace(/<p[^>]*>/gi, '')
+            .replace(/<\/?(strong|b)>/gi, '**')
+            .replace(/<\/?(em|i)>/gi, '_')
+            .replace(/<h([1-6])[^>]*>(.*?)<\/h\1>/gi, (_, n, t) => '#'.repeat(+n) + ' ' + t.replace(/<[^>]+>/g,'') + '\n')
+            .replace(/<a[^>]+href="([^"]*)"[^>]*>(.*?)<\/a>/gi, '[$2]($1)')
+            .replace(/<img[^>]+src="([^"]*)"[^>]*(?:alt="([^"]*)")?[^>]*\/?>/gi, '![$2]($1)')
+            .replace(/<pre[^>]*><code[^>]*>([\s\S]*?)<\/code><\/pre>/gi, '```\n$1\n```')
+            .replace(/<code[^>]*>(.*?)<\/code>/gi, '`$1`')
+            .replace(/<ul[^>]*>([\s\S]*?)<\/ul>/gi, (_, c) => c.replace(/<li[^>]*>(.*?)<\/li>/gi, '- $1\n'))
+            .replace(/<ol[^>]*>([\s\S]*?)<\/ol>/gi, (_, c) => { let i=0; return c.replace(/<li[^>]*>(.*?)<\/li>/gi, () => `${++i}. $1\n`); })
+            .replace(/<blockquote[^>]*>([\s\S]*?)<\/blockquote>/gi, (_, c) => c.split('\n').map(l=>('> '+l.replace(/<[^>]+>/g,'').trim())).join('\n'))
+            .replace(/<[^>]+>/g, '')
+            .replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#039;/g,"'").replace(/&nbsp;/g,' ')
+            .replace(/\n{3,}/g, '\n\n')
+            .trim();
+        }
+
+        function slugify(str) {
+          return String(str||'').toLowerCase().replace(/[^a-z0-9가-힣]+/g,'-').replace(/^-|-$/g,'');
+        }
+
+        function buildFrontmatter(obj) {
+          const lines = ['---'];
+          for (const [k, v] of Object.entries(obj)) {
+            if (v === undefined || v === null) continue;
+            if (Array.isArray(v)) lines.push(`${k}: [${v.map(x=>`"${String(x).replace(/"/g,'\\"')}"`).join(', ')}]`);
+            else if (typeof v === 'boolean') lines.push(`${k}: ${v}`);
+            else lines.push(`${k}: "${String(v).replace(/"/g,'\\"')}"`);
+          }
+          lines.push('---');
+          return lines.join('\n');
+        }
+
+        for (const post of posts) {
+          const slug    = post.slug || slugify(post.title) || `post-${post.id}`;
+          const postTags = (post.tags || []).map(t => typeof t === 'object' ? t.name : t);
+          const postCats = (post.categories || []).map(c => typeof c === 'object' ? c.name : c);
+          const fm = buildFrontmatter({
+            title:       post.title?.rendered || post.title || 'Untitled',
+            description: post.excerpt?.rendered ? htmlToMarkdown(post.excerpt.rendered).slice(0,160) : undefined,
+            pubDate:     post.date || new Date().toISOString(),
+            updatedDate: post.modified || undefined,
+            author:      post.author_name || undefined,
+            tags:        postTags,
+            categories:  postCats,
+            draft:       post.status !== 'publish',
+            image:       post.featured_media_url || undefined,
+          });
+          const content = htmlToMarkdown(post.content?.rendered || post.content || '');
+          files[`src/content/posts/${slug}.${fmt}`] = `${fm}\n\n${content}`;
+        }
+        astroLog(`✅ 글 ${posts.length}개 변환 완료`);
+        astroBar(65);
+
+        // 페이지 파일 생성
+        for (const page of pages) {
+          const slug    = page.slug || slugify(page.title) || `page-${page.id}`;
+          const fm = buildFrontmatter({
+            title:   page.title?.rendered || page.title || 'Untitled',
+            pubDate: page.date || new Date().toISOString(),
+            draft:   page.status !== 'publish',
+          });
+          const content = htmlToMarkdown(page.content?.rendered || page.content || '');
+          files[`src/content/pages/${slug}.${fmt}`] = `${fm}\n\n${content}`;
+        }
+        astroLog(`✅ 페이지 ${pages.length}개 변환 완료`);
+        astroBar(75);
+
+        // 태그/카테고리 JSON
+        if (incTags) {
+          files['src/content/taxonomy.json'] = JSON.stringify({ tags, categories: cats }, null, 2);
+        }
+
+        // src/pages/index.astro
+        files['src/pages/index.astro'] = `---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../layouts/BaseLayout.astro';
+const allPosts = (await getCollection('posts'))
+  .filter(p => !p.data.draft)
+  .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf())
+  .slice(0, 10);
+---
+<BaseLayout title="홈">
+  <h1 style="font-size:2rem;font-weight:800;margin-bottom:2rem;">최근 글</h1>
+  {allPosts.length === 0
+    ? <p>등록된 글이 없습니다.</p>
+    : <ul style="list-style:none;padding:0;display:grid;gap:1.5rem;">
+        {allPosts.map(post => (
+          <li style="border-bottom:1px solid #eee;padding-bottom:1.5rem;">
+            <a href={\`/blog/\${post.slug}\`} style="font-size:1.25rem;font-weight:700;text-decoration:none;color:#111;">{post.data.title}</a>
+            <div style="color:#888;font-size:0.875rem;margin-top:4px;">{post.data.pubDate.toLocaleDateString('ko-KR')}</div>
+            {post.data.description && <p style="margin-top:6px;color:#444;">{post.data.description}</p>}
+          </li>
+        ))}
+      </ul>
+  }
+  <div style="margin-top:2rem;"><a href="/blog">모든 글 보기 →</a></div>
+</BaseLayout>
+`;
+
+        // src/pages/blog/index.astro
+        files['src/pages/blog/index.astro'] = `---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+const allPosts = (await getCollection('posts'))
+  .filter(p => !p.data.draft)
+  .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
+---
+<BaseLayout title="블로그">
+  <h1 style="font-size:2rem;font-weight:800;margin-bottom:2rem;">블로그</h1>
+  {allPosts.length === 0
+    ? <p>등록된 글이 없습니다.</p>
+    : <ul style="list-style:none;padding:0;display:grid;gap:1.5rem;">
+        {allPosts.map(post => (
+          <li style="border-bottom:1px solid #eee;padding-bottom:1.5rem;">
+            <a href={\`/blog/\${post.slug}\`} style="font-size:1.2rem;font-weight:700;text-decoration:none;color:#111;">{post.data.title}</a>
+            <div style="color:#888;font-size:0.875rem;margin-top:4px;">{post.data.pubDate.toLocaleDateString('ko-KR')}</div>
+            {post.data.description && <p style="margin-top:6px;color:#444;">{post.data.description}</p>}
+          </li>
+        ))}
+      </ul>
+  }
+</BaseLayout>
+`;
+
+        // src/pages/blog/[...slug].astro
+        files['src/pages/blog/[...slug].astro'] = `---
+import { getCollection } from 'astro:content';
+import PostLayout from '../../layouts/PostLayout.astro';
+export async function getStaticPaths() {
+  const posts = await getCollection('posts');
+  return posts.map(post => ({ params: { slug: post.slug }, props: { post } }));
+}
+const { post } = Astro.props;
+const { Content } = await post.render();
+---
+<PostLayout post={post}><Content /></PostLayout>
+`;
+
+        // src/pages/[slug].astro (pages)
+        files['src/pages/[slug].astro'] = `---
+import { getCollection } from 'astro:content';
+import PageLayout from '../layouts/PageLayout.astro';
+export async function getStaticPaths() {
+  const pages = await getCollection('pages');
+  return pages.filter(p => !p.data.draft).map(page => ({ params: { slug: page.slug }, props: { page } }));
+}
+const { page } = Astro.props;
+const { Content } = await page.render();
+---
+<PageLayout page={page}><Content /></PageLayout>
+`;
+
+        if (incTags && tags.length > 0) {
+          files['src/pages/tags/[tag].astro'] = `---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+export async function getStaticPaths() {
+  const posts = await getCollection('posts');
+  const allTags = [...new Set(posts.flatMap(p => p.data.tags))];
+  return allTags.map(tag => ({
+    params: { tag },
+    props: { posts: posts.filter(p => p.data.tags.includes(tag)) },
+  }));
+}
+const { tag } = Astro.params;
+const { posts } = Astro.props;
+---
+<BaseLayout title={\`#\${tag}\`}>
+  <h1>#{tag}</h1>
+  <ul style="list-style:none;padding:0;">
+    {posts.map(p => <li style="margin-bottom:1rem;"><a href={\`/blog/\${p.slug}\`}>{p.data.title}</a></li>)}
+  </ul>
+</BaseLayout>
+`;
+        }
+
+        // public/favicon.svg
+        files['public/favicon.svg'] = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">⚡</text></svg>`;
+
+        astroBar(85);
+
+        // 3) ZIP 생성 및 다운로드
+        astroLog('📦 ZIP 압축 중...');
+        const zip = await buildZip(files);
+        astroBar(95);
+
+        const url = URL.createObjectURL(new Blob([zip], { type: 'application/zip' }));
+        const a   = document.createElement('a');
+        a.href    = url;
+        a.download = `astro-site-${new Date().toISOString().slice(0,10)}.zip`;
+        a.click();
+        URL.revokeObjectURL(url);
+
+        astroBar(100);
+        astroLog('🎉 완료!');
+        astroAlert('✅ Astro 프로젝트 ZIP이 다운로드되었습니다. README를 참고해 GitHub Pages에 배포하세요.', 'ok');
+
+      } catch (e) {
+        astroAlert('❌ 변환 실패: ' + e.message, 'error');
+        astroLog('오류: ' + e.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '⚡ Astro 프로젝트 생성';
+      }
+    }
+
+    // ── 경량 ZIP 빌더 (의존성 없음) ─────────────────────────────────────────
+    async function buildZip(files) {
+      // ZIP 포맷: Local File Header + Data + Central Directory + EOCD
+      const enc  = new TextEncoder();
+      const parts = [];
+      const central = [];
+      let offset = 0;
+
+      function u16(n) { const b = new Uint8Array(2); new DataView(b.buffer).setUint16(0,n,true); return b; }
+      function u32(n) { const b = new Uint8Array(4); new DataView(b.buffer).setUint32(0,n,true); return b; }
+
+      function concat(...arrays) {
+        const total = arrays.reduce((s,a)=>s+a.length,0);
+        const out   = new Uint8Array(total);
+        let pos = 0;
+        for (const a of arrays) { out.set(a, pos); pos += a.length; }
+        return out;
+      }
+
+      async function crc32(data) {
+        // Simple CRC32 lookup
+        if (!crc32.table) {
+          crc32.table = new Uint32Array(256);
+          for (let i=0;i<256;i++) {
+            let c=i;
+            for (let j=0;j<8;j++) c = (c&1) ? (0xEDB88320^(c>>>1)) : (c>>>1);
+            crc32.table[i]=c;
+          }
+        }
+        let crc = 0xFFFFFFFF;
+        for (const b of data) crc = crc32.table[(crc^b)&0xFF] ^ (crc>>>8);
+        return (crc^0xFFFFFFFF) >>> 0;
+      }
+
+      const dosDate = () => {
+        const d = new Date();
+        return ((d.getFullYear()-1980)<<9|(d.getMonth()+1)<<5|d.getDate()) & 0xFFFF;
+      };
+      const dosTime = () => {
+        const d = new Date();
+        return (d.getHours()<<11|d.getMinutes()<<5|(d.getSeconds()>>1)) & 0xFFFF;
+      };
+
+      for (const [name, content] of Object.entries(files)) {
+        const nameBytes = enc.encode(name);
+        const data      = typeof content === 'string' ? enc.encode(content) : content;
+        const crc       = await crc32(data);
+        const time      = dosTime();
+        const date      = dosDate();
+
+        // Local file header
+        const lfh = concat(
+          new Uint8Array([0x50,0x4B,0x03,0x04]), // signature
+          u16(20),       // version needed
+          u16(0),        // general purpose flag
+          u16(0),        // compression (stored)
+          u16(time), u16(date),
+          u32(crc),
+          u32(data.length), u32(data.length), // compressed = uncompressed
+          u16(nameBytes.length), u16(0),       // filename len, extra len
+          nameBytes,
+        );
+
+        parts.push(lfh, data);
+
+        // Central directory entry
+        const cde = concat(
+          new Uint8Array([0x50,0x4B,0x01,0x02]),
+          u16(20), u16(20), u16(0), u16(0),
+          u16(time), u16(date),
+          u32(crc),
+          u32(data.length), u32(data.length),
+          u16(nameBytes.length), u16(0), u16(0), u16(0), u16(0),
+          u32(0), // external attrs
+          u32(offset),
+          nameBytes,
+        );
+        central.push(cde);
+        offset += lfh.length + data.length;
+      }
+
+      const centralData = concat(...central);
+      const eocd = concat(
+        new Uint8Array([0x50,0x4B,0x05,0x06]),
+        u16(0), u16(0),
+        u16(central.length), u16(central.length),
+        u32(centralData.length),
+        u32(offset),
+        u16(0),
+      );
+
+      return concat(...parts, centralData, eocd);
+    }
+
+    function escHtml(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 
     loadDbInfo();
   </script>
