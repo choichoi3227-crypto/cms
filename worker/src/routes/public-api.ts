@@ -22,7 +22,13 @@ export async function handlePublicAPI(request: IRequest, env: Env): Promise<Resp
 
   const userUpdateMatch = route.match(/^\/users\/(\d+)\/update$/);
   if (userUpdateMatch && method === 'POST') {
-    return handleUpdateUser(parseInt(userUpdateMatch[1]), request, db);
+    const uid = parseInt(userUpdateMatch[1]);
+    const body2 = await request.clone().json().catch(() => ({})) as Record<string, string>;
+    if (body2.action === 'delete') {
+      await db.deleteUser(uid).catch(() => {});
+      return jsonOk({ success: true, message: '사용자가 삭제되었습니다.' });
+    }
+    return handleUpdateUser(uid, request, db);
   }
 
   // ── Export ────────────────────────────────────────────────────────
@@ -41,6 +47,41 @@ export async function handlePublicAPI(request: IRequest, env: Env): Promise<Resp
     const pageCount = await db.countPosts('page', 'publish');
     const draftCount = await db.countPosts('post', 'draft');
     return jsonOk({ posts: postCount, pages: pageCount, drafts: draftCount });
+  }
+
+  // ── CloudPress 사이트 정보 조회 ─────────────────────────────────────
+  if (route === '/cloudpress/site-info' && method === 'GET') {
+    const host = new URL(request.url).hostname;
+    try {
+      const siteUrl = await env.OPTIONS.get('siteurl') || env.SITE_URL || url.origin;
+      const siteName = await db.getOption('blogname', 'CloudPress Site');
+      const siteDesc = await db.getOption('blogdescription', '');
+      const activeTheme = await db.getOption('template', 'twentytwentyfour');
+      return jsonOk({ siteUrl, siteName, siteDesc, activeTheme, host });
+    } catch (e) {
+      return jsonError('사이트 정보 조회 실패: ' + String(e), 500);
+    }
+  }
+
+  // ── CloudPress 도메인 확인 ────────────────────────────────────────
+  if (route === '/cloudpress/domain-check' && method === 'GET') {
+    const domain = url.searchParams.get('domain') || '';
+    if (!domain) return jsonError('domain 파라미터가 필요합니다.', 400);
+    const siteUrl = await env.OPTIONS.get('siteurl') || '';
+    const currentHost = new URL(siteUrl || url.origin).hostname;
+    return jsonOk({ domain, current: currentHost, match: currentHost === domain });
+  }
+
+  // ── CloudPress 스토리지 사용량 ────────────────────────────────────
+  if (route === '/cloudpress/storage-usage' && method === 'GET') {
+    try {
+      const mediaCount = await env.DB.prepare(
+        "SELECT COUNT(*) as cnt, SUM(CAST(pm.meta_value AS INTEGER)) as total FROM wp_posts p LEFT JOIN wp_postmeta pm ON p.ID = pm.post_id AND pm.meta_key = '_wp_attachment_metadata' WHERE p.post_type = 'attachment'"
+      ).first<{ cnt: number; total: number }>();
+      return jsonOk({ media_count: mediaCount?.cnt || 0, storage_bytes: mediaCount?.total || 0 });
+    } catch {
+      return jsonOk({ media_count: 0, storage_bytes: 0 });
+    }
   }
 
   // ── WordPress XML-RPC compatibility (stub) ────────────────────────
@@ -83,7 +124,11 @@ async function handleSaveOptions(request: IRequest, db: ReturnType<typeof create
 
 async function handleCreateUser(request: IRequest, db: ReturnType<typeof createDB>, env: Env): Promise<Response> {
   const body = await request.json().catch(() => ({})) as Record<string, string>;
-  const { user_login, email, pass1, role = 'subscriber', first_name = '', last_name = '' } = body;
+  const user_login = body.username || body.user_login || '';
+  const email = body.email || '';
+  const pass1 = body.password || body.pass1 || '';
+  const role = body.role || 'subscriber';
+  const _display_name = body.display_name || body.first_name || user_login;
 
   if (!user_login || !email) return jsonError('사용자명과 이메일이 필요합니다.', 400);
 
@@ -97,7 +142,7 @@ async function handleCreateUser(request: IRequest, db: ReturnType<typeof createD
   const password = pass1 || crypto.randomUUID().substring(0, 12);
   const hashedPw = await hashPassword(password);
   const now = new Date().toISOString().replace('T', ' ').split('.')[0];
-  const displayName = [first_name, last_name].filter(Boolean).join(' ') || user_login;
+  const displayName = _display_name || user_login;
 
   await db['db'].prepare(
     'INSERT INTO wp_users (user_login, user_pass, user_email, user_registered, display_name, user_nicename, user_url, user_status) VALUES (?, ?, ?, ?, ?, ?, "", 0)'
