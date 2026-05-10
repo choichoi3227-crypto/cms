@@ -70,8 +70,15 @@ export class WPDB {
       search
     } = args;
 
-    let query = 'SELECT * FROM wp_posts WHERE post_type = ? AND post_status = ?';
-    const binds: unknown[] = [post_type, post_status];
+    let query: string;
+    const binds: unknown[] = [];
+    if (post_status === 'any') {
+      query = "SELECT * FROM wp_posts WHERE post_type = ? AND post_status != 'trash'";
+      binds.push(post_type);
+    } else {
+      query = 'SELECT * FROM wp_posts WHERE post_type = ? AND post_status = ?';
+      binds.push(post_type, post_status);
+    }
 
     if (author) { query += ' AND post_author = ?'; binds.push(author); }
     if (search) { query += ' AND (post_title LIKE ? OR post_content LIKE ?)'; binds.push(`%${search}%`, `%${search}%`); }
@@ -325,6 +332,44 @@ export class WPDB {
       'SELECT * FROM wp_comments WHERE comment_post_ID = ? AND comment_approved = ? ORDER BY comment_date ASC'
     ).bind(postId, status).all<WPComment>();
     return result.results;
+  }
+
+  // ─── User management ──────────────────────────────────────────────────
+  async getAllUsers(): Promise<(WPUser & { user_role: string })[]> {
+    const result = await this.db.prepare(
+      `SELECT u.*, um.meta_value as wp_capabilities
+       FROM wp_users u
+       LEFT JOIN wp_usermeta um ON u.ID = um.user_id AND um.meta_key = 'wp_capabilities'
+       ORDER BY u.ID DESC`
+    ).all<WPUser & { wp_capabilities: string; user_role: string }>();
+    return (result.results || []).map(u => {
+      let role = 'subscriber';
+      try { const caps = JSON.parse(u.wp_capabilities || '{}'); role = Object.keys(caps).find(k => caps[k]) || 'subscriber'; } catch {}
+      return { ...u, user_role: role };
+    });
+  }
+
+  async insertUser(data: {
+    user_login: string; user_pass: string; user_email: string;
+    display_name?: string; user_nicename?: string; user_url?: string; role?: string;
+  }): Promise<number> {
+    const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
+    const slug = (data.user_nicename || data.user_login).toLowerCase().replace(/[^a-z0-9]/g, '-');
+    const result = await this.db.prepare(
+      `INSERT INTO wp_users (user_login, user_pass, user_email, display_name, user_nicename, user_url, user_registered, user_status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 0)`
+    ).bind(data.user_login, data.user_pass, data.user_email, data.display_name || data.user_login, slug, data.user_url || '', now).run();
+    const newId = result.meta?.last_row_id as number || 0;
+    if (newId && data.role) {
+      const caps = JSON.stringify({ [data.role]: true });
+      await this.db.prepare(`INSERT INTO wp_usermeta (user_id, meta_key, meta_value) VALUES (?, 'wp_capabilities', ?) ON CONFLICT DO UPDATE SET meta_value=excluded.meta_value`).bind(newId, caps).run();
+    }
+    return newId;
+  }
+
+  async deleteUser(id: number): Promise<void> {
+    await this.db.prepare('DELETE FROM wp_usermeta WHERE user_id = ?').bind(id).run();
+    await this.db.prepare('DELETE FROM wp_users WHERE ID = ?').bind(id).run();
   }
 
   // ─── Count helpers ────────────────────────────────────────────────
