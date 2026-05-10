@@ -1,104 +1,31 @@
+/**
+ * CloudPress CMS — GitHub-only 환경 타입
+ * D1 Database, KV Namespace 의존 완전 제거
+ * GitHub 레포 = DB + 스토리지
+ */
+
 export interface Env {
-  // D1 Database (CloudPress CMS DB)
-  DB: D1Database;
-
-  // KV Namespaces
-  CACHE: KVNamespace;
-  SESSIONS: KVNamespace;   // 세션 저장소 (wrangler: SESSIONS)
-  OPTIONS: KVNamespace;    // WordPress 옵션 캐시
-
   // Secrets (wrangler secret put)
   JWT_SECRET: string;
   ENCRYPTION_KEY: string;
 
+  // GitHub 인증 (호스팅 생성 시 per-site 토큰)
+  GITHUB_TOKEN: string;        // 플랫폼 운영 GitHub PAT
+  GITHUB_OWNER: string;        // 플랫폼 GitHub 계정
+
   // Vars
   APP_ENV: string;
   APP_VERSION: string;
-  SITE_URL: string;        // CloudPress 플랫폼 기본 URL
-  WP_TABLE_PREFIX: string; // 테이블 접두사 (기본: wp_)
-  GITHUB_OWNER: string;    // GitHub 스토리지 오너
-  GITHUB_REPO: string;     // GitHub 스토리지 저장소
+  SITE_URL: string;            // CloudPress 플랫폼 URL
+
+  // Per-site: 요청 컨텍스트에서 주입
+  _SITE_GITHUB_TOKEN?: string;  // 사이트별 GitHub Token (헤더 or 쿠키에서)
+  _SITE_GITHUB_OWNER?: string;  // 사이트 GitHub owner
+  _SITE_GITHUB_REPO?: string;   // 사이트 GitHub repo
+  _SITE_GITHUB_BRANCH?: string; // 사이트 branch (default: main)
 }
 
-export interface WPUser {
-  ID: number;
-  user_login: string;
-  user_pass: string;
-  user_email: string;
-  user_registered: string;
-  display_name: string;
-  user_nicename: string;
-  user_url: string;
-  user_status: number;
-}
-
-export interface WPPost {
-  ID: number;
-  post_author: number;
-  post_date: string;
-  post_date_gmt: string;
-  post_content: string;
-  post_title: string;
-  post_excerpt: string;
-  post_status: string;
-  comment_status: string;
-  ping_status: string;
-  post_name: string;
-  post_type: string;
-  post_modified: string;
-  post_modified_gmt: string;
-  post_parent: number;
-  guid: string;
-  menu_order: number;
-  post_mime_type: string;
-  comment_count: number;
-}
-
-export interface WPTerm {
-  term_id: number;
-  name: string;
-  slug: string;
-  term_group: number;
-  term_taxonomy_id: number;
-  taxonomy: string;
-  description: string;
-  parent: number;
-  count: number;
-}
-
-export interface WPOption {
-  option_id: number;
-  option_name: string;
-  option_value: string;
-  autoload: string;
-}
-
-export interface WPComment {
-  comment_ID: number;
-  comment_post_ID: number;
-  comment_author: string;
-  comment_author_email: string;
-  comment_author_url: string;
-  comment_author_IP: string;
-  comment_date: string;
-  comment_date_gmt: string;
-  comment_content: string;
-  comment_karma: number;
-  comment_approved: string;
-  comment_agent: string;
-  comment_type: string;
-  comment_parent: number;
-  user_id: number;
-}
-
-export interface SessionData {
-  userId: number;
-  userLogin: string;
-  userEmail: string;
-  roles: string[];
-  capabilities: Record<string, boolean>;
-  expires: number;
-}
+// ─── GitHub 기반 데이터 타입 ─────────────────────────────────────────────
 
 export interface GithubConfig {
   token: string;
@@ -107,6 +34,101 @@ export interface GithubConfig {
   branch: string;
 }
 
+/** _db/settings.json 에 저장되는 사이트 설정 */
+export interface SiteSettings {
+  site_name: string;
+  site_description: string;
+  site_url: string;
+  admin_email: string;
+  posts_per_page: number;
+  active_theme: string;
+  show_on_front: 'posts' | 'page';
+  page_on_front?: number;
+  language: string;
+  timezone: string;
+  date_format: string;
+  comment_status: 'open' | 'closed';
+  created_at: string;
+  updated_at: string;
+}
+
+/** _db/posts/*.json */
+export interface Post {
+  id: number;
+  title: string;
+  slug: string;
+  content: string;
+  excerpt: string;
+  status: 'publish' | 'draft' | 'pending' | 'private' | 'trash';
+  post_type: 'post' | 'page';
+  author_id: number;
+  category_ids: number[];
+  tag_ids: number[];
+  featured_image?: string;
+  comment_status: 'open' | 'closed';
+  created_at: string;
+  updated_at: string;
+  published_at?: string;
+  menu_order: number;
+  comment_count: number;
+}
+
+/** _db/users.json */
+export interface User {
+  id: number;
+  username: string;
+  email: string;
+  display_name: string;
+  password_hash: string;
+  role: 'administrator' | 'editor' | 'author' | 'contributor' | 'subscriber';
+  registered_at: string;
+  bio?: string;
+  avatar?: string;
+}
+
+/** _db/categories.json / tags.json */
+export interface Term {
+  id: number;
+  name: string;
+  slug: string;
+  description: string;
+  parent_id?: number;
+  count: number;
+  taxonomy: 'category' | 'post_tag';
+}
+
+/** _db/comments.json */
+export interface Comment {
+  id: number;
+  post_id: number;
+  author_name: string;
+  author_email: string;
+  author_url?: string;
+  content: string;
+  status: 'approved' | 'pending' | 'spam' | 'trash';
+  parent_id?: number;
+  created_at: string;
+  user_id?: number;
+}
+
+/** _db/media.json */
+export interface MediaFile {
+  id: number;
+  filename: string;
+  original_name: string;
+  path: string;           // _media/YYYY/MM/filename
+  url?: string;           // raw.githubusercontent.com URL
+  mime_type: string;
+  size: number;
+  alt?: string;
+  caption?: string;
+  width?: number;
+  height?: number;
+  uploaded_at: string;
+  uploaded_by: number;
+}
+
+/** _db/plugins.json */
 export interface Plugin {
   slug: string;
   name: string;
@@ -114,10 +136,12 @@ export interface Plugin {
   description: string;
   author: string;
   status: 'active' | 'inactive';
-  files: Record<string, string>;
-  mainFile: string;
+  main_file: string;
+  installed_at: string;
+  settings?: Record<string, unknown>;
 }
 
+/** _db/themes.json */
 export interface Theme {
   slug: string;
   name: string;
@@ -126,27 +150,36 @@ export interface Theme {
   author: string;
   screenshot?: string;
   active: boolean;
-  files: Record<string, string>;
+  installed_at: string;
 }
 
-export interface BlockData {
-  blockName: string;
-  attrs: Record<string, unknown>;
-  innerBlocks: BlockData[];
-  innerHTML: string;
-  innerContent: (string | null)[];
+/** 세션 (메모리/쿠키 JWT) */
+export interface SessionData {
+  userId: number;
+  userLogin: string;
+  userEmail: string;
+  roles: string[];
+  capabilities: Record<string, boolean>;
+  expires: number;
+  githubToken?: string;
+  githubOwner?: string;
+  githubRepo?: string;
+  githubBranch?: string;
 }
 
-// CloudPress 플랫폼 사이트 정보 (cloud-press DB)
+// ─── CloudPress 플랫폼 사이트 정보 ─────────────────────────────────────
 export interface CloudPressSite {
   id: string;
   user_id: string;
   site_name: string;
   primary_domain: string;
   custom_domain?: string;
-  php_version: string;
   status: 'active' | 'suspended' | 'pending';
   plan: string;
+  github_owner: string;
+  github_repo: string;
+  github_branch: string;
+  github_pages_url: string;
   storage_used: number;
   created_at: string;
 }
