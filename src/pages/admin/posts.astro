@@ -1,6 +1,5 @@
 ---
 // src/pages/admin/posts.astro
-export const prerender = false;
 import CmsLayout from '../../layouts/CmsLayout.astro';
 ---
 <CmsLayout title="글 관리" activeMenu="posts">
@@ -120,13 +119,13 @@ import CmsLayout from '../../layouts/CmsLayout.astro';
           return `
             <div class="table-row">
               <div>
-                <a class="post-title-link" href="/admin/posts/${p.ID}/edit">${escHtml(p.post_title || '(제목 없음)')}</a>
+                <a class="post-title-link" href="/admin/posts/edit?id=${p.ID}">${escHtml(p.post_title || '(제목 없음)')}</a>
                 <div class="post-slug">${escHtml(p.post_name || '')}</div>
               </div>
               <div><span class="status-badge status-${sc}">${escHtml(sl)}</span></div>
               <div class="post-date">${p.post_date ? new Date(p.post_date).toLocaleDateString('ko-KR') : '-'}</div>
               <div class="row-actions">
-                <a class="act-btn" href="/admin/posts/${p.ID}/edit">편집</a>
+                <a class="act-btn" href="/admin/posts/edit?id=${p.ID}">편집</a>
                 <button class="act-btn del" onclick="deletePost(${p.ID}, '${escHtml(p.post_title||'')}')">삭제</button>
               </div>
             </div>`;
