@@ -1,6 +1,5 @@
 ---
 // src/pages/admin/tools.astro
-export const prerender = false;
 import CmsLayout from '../../layouts/CmsLayout.astro';
 ---
 <CmsLayout title="도구" activeMenu="tools">
@@ -924,7 +923,6 @@ const { posts } = Astro.props;
       return concat(...parts, centralData, eocd);
     }
 
-    function escHtml(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 
     loadDbInfo();
   </script>
