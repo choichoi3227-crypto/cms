@@ -1,29 +1,26 @@
 {
   "name": "cloudpress-cms",
   "version": "1.0.0",
-  "description": "CloudPress CMS — WordPress-compatible CMS on Cloudflare Pages",
+  "description": "CloudPress CMS — WordPress 호환 CMS (Astro → 순수 HTML5 변환)",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "astro dev",
+    "dev": "wrangler dev worker/src/index.ts --port 8787",
     "build": "astro build",
-    "preview": "astro preview",
-    "deploy": "npm run build && wrangler deploy",
-    "db:init": "wrangler d1 execute cloudpress-cms-db --remote --file=schema.sql",
-    "logs": "wrangler tail",
-    "check": "astro check"
+    "preview": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "astro": "astro",
+    "setup": "node scripts/setup.mjs",
+    "init-admin": "node init-admin.mjs"
   },
   "dependencies": {
-    "@astrojs/cloudflare": "^11.2.0",
-    "astro": "^4.16.19"
+    "@astrojs/cloudflare": "^12.0.0",
+    "astro": "^5.0.0",
+    "itty-router": "^5.0.17"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250430.0",
-    "@types/node": "^22.0.0",
-    "typescript": "^5.7.0",
-    "wrangler": "^4.0.0"
-  },
-  "engines": {
-    "node": ">=18.0.0"
+    "typescript": "^5.0.0",
+    "wrangler": "^3.0.0"
   }
 }
