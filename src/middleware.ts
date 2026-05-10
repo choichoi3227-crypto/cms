@@ -1,11 +1,14 @@
 // src/middleware.ts
-// /admin/* 와 /api/* 경로에 대한 인증 가드
+// Astro SSR 미들웨어 → Worker 통합 인증 가드
+// /admin/* 경로는 Worker의 handleClouPressAdmin이 처리하므로
+// Astro pages는 /api/* 엔드포인트만 남김
+
 import { defineMiddleware } from 'astro:middleware';
 
 export const onRequest = defineMiddleware(async (context, next) => {
   const { pathname } = context.url;
 
-  // 인증 없이 접근 가능한 경로
+  // 공개 경로
   if (
     pathname === '/login' ||
     pathname === '/login/' ||
@@ -19,41 +22,21 @@ export const onRequest = defineMiddleware(async (context, next) => {
     return next();
   }
 
-  // /admin/* 또는 /api/* 는 인증 필요
-  if (pathname.startsWith('/admin') || pathname.startsWith('/api/')) {
+  // /admin/* 는 Worker가 처리 (Astro는 개입 안 함)
+  if (pathname.startsWith('/admin')) {
+    return next();
+  }
+
+  // /api/* 는 세션 쿠키 또는 Authorization 헤더로 인증
+  if (pathname.startsWith('/api/')) {
     const cookie = context.request.headers.get('cookie') || '';
-    const token  = cookie
-      .split(';')
-      .map(c => c.trim())
-      .find(c => c.startsWith('cp_cms_session='))
-      ?.slice('cp_cms_session='.length);
-
-    if (!token) {
-      if (pathname.startsWith('/api/')) {
-        return new Response(
-          JSON.stringify({ error: '인증이 필요합니다.' }),
-          { status: 401, headers: { 'Content-Type': 'application/json' } }
-        );
-      }
-      return context.redirect('/login', 302);
-    }
-
-    // JWT 만료 체크
-    try {
-      const parts = token.split('.');
-      if (parts.length !== 3) throw new Error('invalid');
-      const payload = JSON.parse(
-        atob(parts[1].replace(/-/g, '+').replace(/_/g, '/'))
-      );
-      if (payload.exp < Math.floor(Date.now() / 1000)) throw new Error('expired');
-    } catch {
-      if (pathname.startsWith('/api/')) {
-        return new Response(
-          JSON.stringify({ error: '세션이 만료되었습니다.' }),
-          { status: 401, headers: { 'Content-Type': 'application/json' } }
-        );
-      }
-      return context.redirect('/login', 302);
+    const auth = context.request.headers.get('authorization') || '';
+    const hasSession = cookie.includes('cp_cms_session=') || auth.startsWith('Bearer ');
+    if (!hasSession) {
+      return new Response(JSON.stringify({ error: '인증이 필요합니다.', code: 'UNAUTHORIZED' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
   }
 
