@@ -1,6 +1,16 @@
 ---
 // src/pages/index.astro
-// 루트 → /admin 으로 리다이렉트
-export const prerender = false;
-return Astro.redirect('/admin', 302);
+// 루트 → /admin 으로 리다이렉트 (정적 빌드용)
 ---
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="refresh" content="0; url=./admin/" />
+  <title>CloudPress CMS</title>
+</head>
+<body>
+  <script>window.location.replace('./admin/');</script>
+  <p><a href="./admin/">관리자 페이지로 이동</a></p>
+</body>
+</html>
