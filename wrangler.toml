@@ -1,6 +1,6 @@
 # CloudPress CMS — wrangler.toml
 name                   = "cloudpress-cms"
-pages_build_output_dir = "."
+pages_build_output_dir = "dist"
 compatibility_date     = "2025-04-01"
 compatibility_flags    = ["nodejs_compat"]
 
@@ -23,7 +23,7 @@ id      = "REPLACE_WITH_YOUR_KV_OPTIONS_ID"
 
 [vars]
 WP_TABLE_PREFIX = "wp_"
-SITE_URL        = "https://cms-b56.pages.dev/"
+SITE_URL        = "https://cloud-press.co.kr"
 GITHUB_OWNER    = ""
 GITHUB_REPO     = ""
 APP_ENV         = "production"
