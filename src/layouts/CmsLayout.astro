@@ -1,23 +1,167 @@
 ---
 // src/layouts/CmsLayout.astro
-// Worker의 cloudpress-admin.ts가 /admin/* 레이아웃을 처리하므로
-// 이 레이아웃은 더 이상 사용되지 않습니다.
-// Astro API 엔드포인트(/api/*)만 Astro가 담당합니다.
+// CloudPress CMS 관리자 레이아웃 (정적 빌드용)
+
 export interface Props {
   title?: string;
   activeMenu?: string;
 }
-const { title = 'CloudPress CMS' } = Astro.props;
+
+const { title = 'CloudPress CMS', activeMenu = '' } = Astro.props;
+
+const navItems = [
+  { key: 'dashboard', label: '대시보드', icon: '🏠', href: '/admin/' },
+  { key: 'posts',     label: '글 관리',   icon: '✏️',  href: '/admin/posts' },
+  { key: 'pages',     label: '페이지',    icon: '📄',  href: '/admin/pages' },
+  { key: 'media',     label: '미디어',    icon: '🖼️',  href: '/admin/media' },
+  { key: 'comments',  label: '댓글',      icon: '💬',  href: '/admin/comments' },
+  { key: 'categories',label: '카테고리',  icon: '📂',  href: '/admin/categories' },
+  { key: 'tags',      label: '태그',      icon: '🏷️',  href: '/admin/tags' },
+  { key: 'users',     label: '사용자',    icon: '👥',  href: '/admin/users' },
+  { key: 'plugins',   label: '플러그인',  icon: '🔌',  href: '/admin/plugins' },
+  { key: 'themes',    label: '테마',      icon: '🎨',  href: '/admin/themes' },
+  { key: 'settings',  label: '설정',      icon: '⚙️',  href: '/admin/settings' },
+  { key: 'tools',     label: '도구',      icon: '🛠️',  href: '/admin/tools' },
+];
 ---
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{title} — CloudPress CMS</title>
-  <meta http-equiv="refresh" content="0; url=/admin">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1e2327;
+      color: #c3c4c7;
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: 220px;
+      min-height: 100vh;
+      background: #23282d;
+      border-right: 1px solid #3c434a;
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      z-index: 100;
+      overflow-y: auto;
+    }
+    .sidebar-logo {
+      padding: 18px 20px;
+      font-size: 16px;
+      font-weight: 800;
+      color: #fff;
+      border-bottom: 1px solid #3c434a;
+      letter-spacing: -.3px;
+    }
+    .sidebar-logo span { color: #2271b1; }
+    .nav { flex: 1; padding: 10px 0; }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 20px;
+      color: #c3c4c7;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all .15s;
+      border-left: 3px solid transparent;
+    }
+    .nav-item:hover { background: rgba(255,255,255,.05); color: #fff; }
+    .nav-item.active {
+      background: rgba(34,113,177,.15);
+      color: #fff;
+      border-left-color: #2271b1;
+    }
+    .nav-icon { font-size: 15px; width: 20px; text-align: center; }
+    .sidebar-footer {
+      padding: 14px 20px;
+      border-top: 1px solid #3c434a;
+      font-size: 12px;
+      color: #8c8f94;
+    }
+
+    /* ── Main content ── */
+    .main-wrap {
+      margin-left: 220px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+    .topbar {
+      background: #23282d;
+      border-bottom: 1px solid #3c434a;
+      padding: 12px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .topbar-title { font-size: 14px; font-weight: 600; color: #fff; }
+    .topbar-actions { display: flex; align-items: center; gap: 12px; font-size: 13px; color: #8c8f94; }
+    .content { padding: 28px; flex: 1; }
+
+    /* ── Mobile toggle ── */
+    .menu-toggle {
+      display: none;
+      background: none;
+      border: none;
+      color: #fff;
+      font-size: 20px;
+      cursor: pointer;
+      padding: 4px 8px;
+    }
+    @media (max-width: 768px) {
+      .sidebar { transform: translateX(-100%); transition: transform .25s; }
+      .sidebar.open { transform: translateX(0); }
+      .main-wrap { margin-left: 0; }
+      .menu-toggle { display: block; }
+    }
+  </style>
 </head>
 <body>
-  <script>window.location.href = '/admin';</script>
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-logo">☁️ <span>Cloud</span>Press</div>
+    <div class="nav">
+      {navItems.map((item) => (
+        <a
+          class={`nav-item${activeMenu === item.key ? ' active' : ''}`}
+          href={item.href}
+        >
+          <span class="nav-icon">{item.icon}</span>
+          {item.label}
+        </a>
+      ))}
+    </div>
+    <div class="sidebar-footer">CloudPress CMS v1.0</div>
+  </nav>
+
+  <div class="main-wrap">
+    <header class="topbar">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <button class="menu-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')" aria-label="메뉴">☰</button>
+        <span class="topbar-title">{title}</span>
+      </div>
+      <div class="topbar-actions">
+        <span id="topbar-user">관리자</span>
+      </div>
+    </header>
+    <main class="content">
+      <slot />
+    </main>
+  </div>
 </body>
 </html>
