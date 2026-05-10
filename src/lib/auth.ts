@@ -1,5 +1,6 @@
 // src/lib/auth.ts
-// 공통 세션 인증 헬퍼 (SESSIONS KV 사용)
+// 공통 세션 인증 헬퍼 (정적 빌드용 — 타입 정의만 포함)
+// 실제 인증 로직은 백엔드 API 서버에서 처리됩니다.
 
 export interface SessionUser {
   ID: number;
@@ -8,38 +9,25 @@ export interface SessionUser {
   roles: string[];
 }
 
-export async function getSessionUser(request: Request, env: any): Promise<SessionUser | null> {
-  const cookie = request.headers.get('Cookie') || '';
-  const auth = request.headers.get('Authorization') || '';
+/**
+ * 클라이언트 사이드: 세션 쿠키에서 토큰 읽기
+ */
+export function getSessionToken(): string | null {
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie.match(/cp_cms_session=([^;]+)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
 
-  let token: string | null = null;
-  const cookieMatch = cookie.match(/cp_cms_session=([^;]+)/);
-  if (cookieMatch) token = decodeURIComponent(cookieMatch[1]);
-  else if (auth.startsWith('Bearer ')) token = auth.slice(7);
-
-  if (!token) return null;
-
+/**
+ * 클라이언트 사이드: API에서 현재 사용자 정보 조회
+ */
+export async function fetchCurrentUser(): Promise<SessionUser | null> {
   try {
-    const session = await (env.SESSIONS as KVNamespace).get<any>(`cms:${token}`, 'json');
-    if (!session || session.expires < Date.now()) return null;
-    return {
-      ID: session.userId,
-      user_login: session.userLogin,
-      user_email: session.userEmail,
-      roles: session.roles || ['subscriber'],
-    };
+    const res = await fetch('/api/auth/me');
+    if (!res.ok) return null;
+    const data = await res.json() as { user?: SessionUser };
+    return data.user ?? null;
   } catch {
     return null;
   }
-}
-
-export function requireAuth(user: SessionUser | null): Response | null {
-  if (!user) return Response.json({ error: '인증이 필요합니다.' }, { status: 401 });
-  return null;
-}
-
-export function requireAdmin(user: SessionUser | null): Response | null {
-  if (!user) return Response.json({ error: '인증이 필요합니다.' }, { status: 401 });
-  if (!user.roles.includes('administrator')) return Response.json({ error: '관리자 권한이 필요합니다.' }, { status: 403 });
-  return null;
 }
