@@ -1,10 +1,10 @@
 ---
-export const prerender = false;
+// src/pages/admin/index.astro
+// 대시보드 (정적 빌드용)
 import CmsLayout from '../../layouts/CmsLayout.astro';
 ---
 <CmsLayout title="대시보드" activeMenu="dashboard">
   <style>
-    .wrap-heading { margin-bottom: 20px; }
     .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-bottom: 24px; }
     .stat { background: #2c3338; border: 1px solid #3c434a; border-radius: 8px; padding: 18px; text-align: center; }
     .stat-num { font-size: 30px; font-weight: 800; color: #fff; }
@@ -28,9 +28,22 @@ import CmsLayout from '../../layouts/CmsLayout.astro';
     h2 { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 4px; }
     h3 { font-size: 13px; font-weight: 700; color: #8c8f94; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 12px; }
     .empty { padding: 32px; text-align: center; color: #8c8f94; font-size: 13px; }
+    .api-notice {
+      background: rgba(34,113,177,.08);
+      border: 1px solid rgba(34,113,177,.25);
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 12px;
+      color: #8c8f94;
+      margin-bottom: 20px;
+    }
   </style>
 
   <h2>대시보드</h2>
+
+  <div class="api-notice">
+    ℹ️ 현재 정적 미리보기 모드입니다. 실제 데이터는 백엔드 API 서버 연결 후 표시됩니다.
+  </div>
 
   <div class="stats">
     <div class="stat"><div class="stat-num" id="s-posts">-</div><div class="stat-lbl">게시글</div></div>
@@ -41,9 +54,9 @@ import CmsLayout from '../../layouts/CmsLayout.astro';
 
   <h3>빠른 실행</h3>
   <div class="quick">
-    <a class="qbtn" href="/admin/posts/new"><span class="qi">✏️</span>새 글 쓰기</a>
-    <a class="qbtn" href="/admin/pages/new"><span class="qi">📄</span>새 페이지</a>
-    <a class="qbtn" href="/admin/media"><span class="qi">🖼️</span>미디어 업로드</a>
+    <a class="qbtn" href="/admin/posts"><span class="qi">✏️</span>글 관리</a>
+    <a class="qbtn" href="/admin/pages"><span class="qi">📄</span>페이지</a>
+    <a class="qbtn" href="/admin/media"><span class="qi">🖼️</span>미디어</a>
     <a class="qbtn" href="/admin/plugins"><span class="qi">🔌</span>플러그인</a>
     <a class="qbtn" href="/admin/themes"><span class="qi">🎨</span>테마</a>
     <a class="qbtn" href="/admin/settings"><span class="qi">⚙️</span>설정</a>
@@ -52,32 +65,56 @@ import CmsLayout from '../../layouts/CmsLayout.astro';
   <h3>최근 게시글</h3>
   <div class="recent">
     <div class="recent-hd">최근 게시글</div>
-    <div id="posts-list"><div class="empty">로딩 중...</div></div>
+    <div id="posts-list"><div class="empty">API 서버 연결 후 표시됩니다.</div></div>
   </div>
 
   <script>
-    function escHtml(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-    async function loadDashboard() {
+    function escHtml(s: string): string {
+      return String(s || '').replace(/[&<>"']/g, (c: string) =>
+        ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] ?? c
+      );
+    }
+
+    async function loadDashboard(): Promise<void> {
       try {
-        const res  = await fetch('/api/posts?per_page=8');
+        const res = await fetch('/api/posts?per_page=8');
+        if (!res.ok) throw new Error('API 응답 오류');
         const data = await res.json();
-        document.getElementById('s-posts').textContent    = String(data.total_posts    ?? '-');
-        document.getElementById('s-pages').textContent    = String(data.total_pages_count ?? '-');
-        document.getElementById('s-media').textContent    = String(data.total_media    ?? '-');
-        document.getElementById('s-comments').textContent = String(data.total_comments  ?? '-');
-        const posts = data.posts || [];
+        const posts: Array<{ ID: number; post_title?: string; post_status?: string; post_date?: string }> = data.posts || [];
+
         const el = document.getElementById('posts-list');
-        if (!posts.length) { el.innerHTML = '<div class="empty">아직 게시글이 없습니다. <a href="/admin/posts/new" style="color:#2271b1;">첫 글을 작성해보세요!</a></div>'; return; }
-        el.innerHTML = posts.map((p: any) => `
+        if (!el) return;
+
+        if (!posts.length) {
+          el.innerHTML = '<div class="empty">아직 게시글이 없습니다.</div>';
+          return;
+        }
+
+        el.innerHTML = posts.map((p) => `
           <div class="recent-row">
             <div>
-              <a class="recent-title" href="/admin/posts/${p.ID}/edit">${escHtml(p.post_title||'(제목 없음)')}</a>
-              <div class="recent-meta">${escHtml(p.post_status||'')}</div>
+              <a class="recent-title" href="/admin/posts/edit?id=${p.ID}">${escHtml(p.post_title ?? '(제목 없음)')}</a>
+              <div class="recent-meta">${escHtml(p.post_status ?? '')}</div>
             </div>
             <span class="recent-date">${p.post_date ? new Date(p.post_date).toLocaleDateString('ko-KR') : ''}</span>
           </div>`).join('');
-      } catch(e) { document.getElementById('posts-list').innerHTML = '<div class="empty" style="color:#f87171;">로드 실패</div>'; }
+
+        const statsEl = {
+          posts: document.getElementById('s-posts'),
+          pages: document.getElementById('s-pages'),
+          media: document.getElementById('s-media'),
+          comments: document.getElementById('s-comments'),
+        };
+        if (statsEl.posts) statsEl.posts.textContent = String(data.total_posts ?? '-');
+        if (statsEl.pages) statsEl.pages.textContent = String(data.total_pages_count ?? '-');
+        if (statsEl.media) statsEl.media.textContent = String(data.total_media ?? '-');
+        if (statsEl.comments) statsEl.comments.textContent = String(data.total_comments ?? '-');
+      } catch {
+        const el = document.getElementById('posts-list');
+        if (el) el.innerHTML = '<div class="empty">API 서버에 연결할 수 없습니다.</div>';
+      }
     }
+
     loadDashboard();
   </script>
 </CmsLayout>
