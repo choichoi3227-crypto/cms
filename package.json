@@ -1,26 +1,19 @@
 {
   "name": "cloudpress-cms",
   "version": "1.0.0",
-  "description": "CloudPress CMS — WordPress 호환 CMS (Astro → 순수 HTML5 변환)",
+  "description": "CloudPress CMS — GitHub Pages 정적 배포",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev worker/src/index.ts --port 8787",
+    "dev": "astro dev",
     "build": "astro build",
-    "preview": "wrangler dev",
-    "deploy": "wrangler deploy",
-    "astro": "astro",
-    "setup": "node scripts/setup.mjs",
-    "init-admin": "node init-admin.mjs"
+    "preview": "astro preview",
+    "astro": "astro"
   },
   "dependencies": {
-    "@astrojs/cloudflare": "^12.0.0",
-    "astro": "^5.0.0",
-    "itty-router": "^5.0.17"
+    "astro": "^5.0.0"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20250430.0",
-    "typescript": "^5.0.0",
-    "wrangler": "^3.0.0"
+    "typescript": "^5.0.0"
   }
 }
