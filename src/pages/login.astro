@@ -1,6 +1,117 @@
 ---
 // src/pages/login.astro
-// /login → /admin/auth/login 으로 리다이렉트
-export const prerender = false;
-return Astro.redirect('/admin/auth/login', 302);
+// 로그인 페이지 (정적 빌드용 — 실제 인증은 백엔드 API 필요)
 ---
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>로그인 — CloudPress CMS</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1e2327;
+      color: #c3c4c7;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .login-box {
+      background: #23282d;
+      border: 1px solid #3c434a;
+      border-radius: 12px;
+      padding: 40px 36px;
+      width: 100%;
+      max-width: 380px;
+    }
+    .logo {
+      text-align: center;
+      font-size: 22px;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 28px;
+    }
+    .logo span { color: #2271b1; }
+    label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+    input {
+      width: 100%;
+      background: #2c3338;
+      border: 1px solid #3c434a;
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: #fff;
+      font-size: 14px;
+      margin-bottom: 16px;
+      outline: none;
+      transition: border-color .15s;
+    }
+    input:focus { border-color: #2271b1; }
+    button {
+      width: 100%;
+      background: #2271b1;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 11px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    button:hover { background: #135e96; }
+    .notice {
+      margin-top: 20px;
+      padding: 12px 14px;
+      background: rgba(34,113,177,.1);
+      border: 1px solid rgba(34,113,177,.3);
+      border-radius: 8px;
+      font-size: 12px;
+      color: #8c8f94;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-box">
+    <div class="logo">☁️ <span>Cloud</span>Press</div>
+    <div>
+      <label for="username">사용자 이름</label>
+      <input id="username" type="text" placeholder="admin" autocomplete="username" />
+      <label for="password">비밀번호</label>
+      <input id="password" type="password" placeholder="••••••••" autocomplete="current-password" />
+      <button onclick="handleLogin()">로그인</button>
+    </div>
+    <div class="notice">
+      ℹ️ 이 페이지는 정적 미리보기입니다.<br />실제 인증은 백엔드 API 서버가 필요합니다.
+    </div>
+  </div>
+  <script>
+    function handleLogin() {
+      const user = document.getElementById('username').value;
+      const pass = document.getElementById('password').value;
+      if (!user || !pass) { alert('사용자 이름과 비밀번호를 입력하세요.'); return; }
+      // 실제 환경에서는 /api/auth/login 에 POST 요청
+      fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: user, password: pass }),
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.success) {
+            window.location.href = '/admin/';
+          } else {
+            alert(data.error || '로그인 실패');
+          }
+        })
+        .catch(() => {
+          alert('API 서버에 연결할 수 없습니다. (정적 미리보기 모드)');
+        });
+    }
+    document.addEventListener('keydown', e => { if (e.key === 'Enter') handleLogin(); });
+  </script>
+</body>
+</html>
