@@ -1,0 +1,70 @@
+---
+// src/pages/404.astro
+// GitHub Pages 커스텀 404 페이지
+// SPA 라우팅 지원 — /admin/* 경로로의 직접 접근 처리
+---
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>페이지를 찾을 수 없습니다 — CloudPress CMS</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1e2327;
+      color: #c3c4c7;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .box {
+      text-align: center;
+      padding: 40px;
+      max-width: 400px;
+    }
+    .code { font-size: 80px; font-weight: 900; color: #2271b1; line-height: 1; margin-bottom: 16px; }
+    h1 { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 12px; }
+    p { font-size: 14px; color: #8c8f94; margin-bottom: 24px; }
+    a {
+      display: inline-block;
+      background: #2271b1;
+      color: #fff;
+      text-decoration: none;
+      padding: 10px 22px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 14px;
+      transition: background .15s;
+    }
+    a:hover { background: #135e96; }
+  </style>
+  <script>
+    // GitHub Pages SPA fallback:
+    // /admin/posts/123/edit → 정적 파일이 없으면 404로 오는데,
+    // 여기서 올바른 정적 페이지로 리다이렉트
+    (function () {
+      const path = window.location.pathname;
+      // /admin/posts/[id]/edit → /admin/posts/[id]/edit/ (index.html)
+      // GitHub Pages는 정적 파일만 서빙하므로 동적 경로는 404에서 처리
+      const base = document.querySelector('base')?.getAttribute('href') || '/';
+
+      // 관리자 루트
+      if (path === base || path === base.replace(/\/$/, '')) {
+        window.location.replace(base + 'admin/');
+        return;
+      }
+    })();
+  </script>
+</head>
+<body>
+  <div class="box">
+    <div class="code">404</div>
+    <h1>페이지를 찾을 수 없습니다</h1>
+    <p>요청하신 페이지가 존재하지 않거나 이동되었습니다.</p>
+    <a href="/admin/">대시보드로 이동</a>
+  </div>
+</body>
+</html>
