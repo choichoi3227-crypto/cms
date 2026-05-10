@@ -1,12 +1,19 @@
 // src/pages/api/media/upload.ts
 // POST /api/media/upload → 파일을 D1(base64 청크) 또는 R2에 저장
 export const prerender = false;
-import { getSessionUser } from '../auth/me';
-
 export async function POST({ request, env }: { request: Request; env: any }) {
   try {
-    const user = await getSessionUser(request, env);
-    if (!user) return Response.json({ error: '인증이 필요합니다.' }, { status: 401 });
+    // 세션 인증
+    const cookie = request.headers.get('Cookie') || '';
+    const auth = request.headers.get('Authorization') || '';
+    let token: string | null = null;
+    const m = cookie.match(/cp_cms_session=([^;]+)/);
+    if (m) token = decodeURIComponent(m[1]);
+    else if (auth.startsWith('Bearer ')) token = auth.slice(7);
+    if (!token) return Response.json({ error: '인증이 필요합니다.' }, { status: 401 });
+    const session = await (env.SESSIONS as KVNamespace).get<any>(`cms:${token}`, 'json').catch(() => null);
+    if (!session || session.expires < Date.now()) return Response.json({ error: '세션 만료' }, { status: 401 });
+    const user = { ID: session.userId, user_login: session.userLogin, user_email: session.userEmail };
 
     const db   = env.DB as D1Database;
     const body = await request.json() as any;
