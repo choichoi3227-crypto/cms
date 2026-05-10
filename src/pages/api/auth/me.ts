@@ -1,6 +1,28 @@
 // src/pages/api/auth/me.ts
 export const prerender = false;
 
+export async function getSessionUser(request: Request, env: any): Promise<any | null> {
+  const cookie = request.headers.get('Cookie') || '';
+  const auth = request.headers.get('Authorization') || '';
+
+  let token: string | null = null;
+  const cookieMatch = cookie.match(/cp_cms_session=([^;]+)/);
+  if (cookieMatch) token = decodeURIComponent(cookieMatch[1]);
+  else if (auth.startsWith('Bearer ')) token = auth.slice(7);
+
+  if (!token) return null;
+
+  const session = await (env.SESSIONS as KVNamespace).get<any>(`cms:${token}`, 'json').catch(() => null);
+  if (!session || session.expires < Date.now()) return null;
+
+  return {
+    ID: session.userId,
+    user_login: session.userLogin,
+    user_email: session.userEmail,
+    roles: session.roles,
+  };
+}
+
 export async function GET({ request, env }: { request: Request; env: any }) {
   const cookie = request.headers.get('Cookie') || '';
   const auth = request.headers.get('Authorization') || '';
