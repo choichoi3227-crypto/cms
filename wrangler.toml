@@ -14,14 +14,20 @@ binding = "CACHE"
 id      = "REPLACE_WITH_YOUR_KV_CACHE_ID"
 
 [[kv_namespaces]]
-binding = "SESSION_SWAP"
+binding = "SESSIONS"
 id      = "REPLACE_WITH_YOUR_KV_SESSION_ID"
+
+[[kv_namespaces]]
+binding = "OPTIONS"
+id      = "REPLACE_WITH_YOUR_KV_OPTIONS_ID"
 
 [vars]
 WP_TABLE_PREFIX = "wp_"
 SITE_URL        = "https://cloud-press.co.kr"
 GITHUB_OWNER    = ""
 GITHUB_REPO     = ""
+APP_ENV         = "production"
+APP_VERSION     = "1.0.0"
 
 [dev]
 port           = 8787
