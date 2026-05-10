@@ -1,9 +1,6 @@
 ---
 // src/pages/admin/posts/[id]/edit.astro
-export const prerender = false;
-import CmsLayout from '../../../../layouts/CmsLayout.astro';
-const { id } = Astro.params;
-const savedMsg = Astro.url.searchParams.get('saved') === '1';
+import CmsLayout from '../../../layouts/CmsLayout.astro';
 ---
 <CmsLayout title="글 편집" activeMenu="posts">
   <style>
@@ -62,8 +59,7 @@ const savedMsg = Astro.url.searchParams.get('saved') === '1';
     </div>
   </div>
 
-  <div id="alert" class="alert" style={savedMsg ? 'background:#1a3020;border:1px solid #208b45;color:#4ade80;display:block;' : ''}>
-    {savedMsg ? '✅ 저장되었습니다.' : ''}
+  <div id="alert" class="alert">
   </div>
 
   <div class="editor-wrap">
@@ -136,7 +132,8 @@ const savedMsg = Astro.url.searchParams.get('saved') === '1';
     </div>
   </div>
 
-  <script define:vars={{ postId: id }}>
+  <script>
+    const postId = new URLSearchParams(window.location.search).get('id');
     let autosaveTimer = null;
     const hint = document.getElementById('autosave-hint');
 
