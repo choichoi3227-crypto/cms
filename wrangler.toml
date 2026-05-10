@@ -3,24 +3,6 @@ name                   = "cloudpress-cms"
 pages_build_output_dir = "dist"
 compatibility_date     = "2025-04-01"
 compatibility_flags    = ["nodejs_compat"]
-
-[[d1_databases]]
-binding       = "DB"
-database_name = "cloudpress-cms-db"
-database_id   = "REPLACE_WITH_YOUR_D1_ID"
-
-[[kv_namespaces]]
-binding = "CACHE"
-id      = "REPLACE_WITH_YOUR_KV_CACHE_ID"
-
-[[kv_namespaces]]
-binding = "SESSIONS"
-id      = "REPLACE_WITH_YOUR_KV_SESSION_ID"
-
-[[kv_namespaces]]
-binding = "OPTIONS"
-id      = "REPLACE_WITH_YOUR_KV_OPTIONS_ID"
-
 [vars]
 WP_TABLE_PREFIX = "wp_"
 SITE_URL        = "https://cloud-press.co.kr"
