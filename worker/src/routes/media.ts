@@ -1,4 +1,4 @@
-import { IRequest } from 'itty-router';
+import { IRequest } from '../router';
 import { Env } from '../types/env';
 import { createGithubStorage } from '../utils/github';
 

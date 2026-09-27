@@ -1,8 +1,9 @@
-import { IRequest } from 'itty-router';
+import { IRequest } from '../router';
 import { Env } from '../types/env';
 import { hashPassword } from '../utils/crypto';
 import { GitHubStorage } from '../utils/github';
 import { INSTALL_HTML } from '../admin/install-page';
+import { purgePageCache } from '../middleware/cache';
 
 export async function handleInstall(request: IRequest, env: Env): Promise<Response> {
   const url = new URL(request.url);
@@ -167,6 +168,7 @@ async function handleDoInstall(
 
     // ── 6. Flush options to KV ───────────────────────────────────
     await env.OPTIONS.put('opt:installed', '1');
+    await purgePageCache(env);
 
     return jsonOk({ 
       message: '설치 완료!',
