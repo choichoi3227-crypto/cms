@@ -1,10 +1,16 @@
 /**
  * CloudPress CMS — GitHub-only 환경 타입
- * D1 Database, KV Namespace 의존 완전 제거
- * GitHub 레포 = DB + 스토리지
+ * Cloudflare D1, KV, Durable Objects와 GitHub 스토리지를 함께 사용합니다.
  */
 
 export interface Env {
+  // Cloudflare data plane
+  DB: D1Database;
+  CACHE: KVNamespace;
+  SESSIONS: KVNamespace;
+  OPTIONS: KVNamespace;
+  CACHE_COORDINATOR: DurableObjectNamespace;
+
   // Secrets (wrangler secret put)
   JWT_SECRET: string;
   ENCRYPTION_KEY: string;

@@ -8,13 +8,16 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "dev:worker": "wrangler dev",
+    "check:worker": "wrangler deploy --dry-run"
   },
   "dependencies": {
     "astro": "^5.0.0",
     "@astrojs/cloudflare": "^12.0.0"
   },
   "devDependencies": {
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "wrangler": "^4.40.0"
   }
 }

@@ -1,4 +1,4 @@
-import { IRequest } from 'itty-router';
+import { IRequest } from '../router';
 import { Env, SessionData } from '../types/env';
 import { createDB } from '../utils/db';
 import { createSession, authMiddleware } from '../middleware/auth';
