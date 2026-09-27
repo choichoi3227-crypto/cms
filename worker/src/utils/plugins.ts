@@ -785,9 +785,10 @@ function createWPRocketRuntime(db: WPDB, env: Env): PluginRuntime {
 
 function handleRocketClearCache(env: Env) {
   return async () => {
-    const list = await env.CACHE.list({ prefix: 'page:' });
-    await Promise.all(list.keys.map(k => env.CACHE.delete(k.name)));
-    return { success: true, data: `${list.keys.length}개 캐시 삭제됨` };
+    const id = env.CACHE_COORDINATOR.idFromName('site');
+    const response = await env.CACHE_COORDINATOR.get(id).fetch('https://cache.internal/purge', { method: 'POST' });
+    if (!response.ok) throw new Error('Cache purge failed');
+    return { success: true, data: '페이지 캐시가 즉시 무효화되었습니다.' };
   };
 }
 

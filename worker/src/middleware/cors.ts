@@ -1,4 +1,4 @@
-import { IRequest } from 'itty-router';
+import { IRequest } from '../router';
 
 export function corsMiddleware(request: IRequest): Response | undefined {
   if (request.method === 'OPTIONS') {
