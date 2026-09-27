@@ -417,10 +417,12 @@ async function startInstall() {
     });
     const data = await res.json();
     if(data.success) {
+      const warnings = Array.isArray(data.data.warnings) && data.data.warnings.length
+        ? '<br/><span style="color:#b32d2e">'+data.data.warnings.map(escapeHtml).join('<br/>')+'</span>' : '';
       document.getElementById('install-details').innerHTML =
         '<strong>사이트:</strong> '+state.site.title+'<br/>'+
         '<strong>관리자:</strong> '+state.site.user+'<br/>'+
-        '<strong>URL:</strong> '+(data.data.site_url || location.origin)+'/wp-admin/';
+        '<strong>URL:</strong> '+(data.data.site_url || location.origin)+'/wp-admin/'+warnings;
       goStep(5);
     } else {
       alert('설치 실패: '+(data.error||JSON.stringify(data)));
@@ -430,6 +432,10 @@ async function startInstall() {
     alert('오류: '+e.message);
     btn.disabled = false; spinner.classList.remove('active');
   }
+}
+
+function escapeHtml(value) {
+  const div = document.createElement('div'); div.textContent = String(value); return div.innerHTML;
 }
 </script>
 </body>

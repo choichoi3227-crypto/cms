@@ -35,8 +35,10 @@ export async function handleInstall(request: IRequest, env: Env): Promise<Respon
 }
 
 async function handleValidateGithub(body: Record<string, string>, env: Env): Promise<Response> {
-  const { github_token, github_repo } = body;
+  const github_token = normaliseGitHubToken(body.github_token);
+  const github_repo = (body.github_repo || 'cfwp-storage').trim();
   if (!github_token) return jsonError('GitHub token required');
+  if (!isValidRepositoryName(github_repo)) return jsonError('레포지토리 이름은 영문, 숫자, ., _, -만 사용할 수 있습니다.');
 
   const github = new GitHubStorage({
     token: github_token,
@@ -46,7 +48,7 @@ async function handleValidateGithub(body: Record<string, string>, env: Env): Pro
   });
 
   const user = await github.getAuthenticatedUser();
-  if (!user) return jsonError('Invalid GitHub token');
+  if (!user) return jsonError('GitHub 인증에 실패했습니다. 토큰을 다시 만들거나 이 단계를 건너뛰어 D1/KV 전용으로 설치할 수 있습니다.');
 
   return jsonOk({ login: user.login, email: user.email });
 }
@@ -58,7 +60,7 @@ async function handleDoInstall(
 ): Promise<Response> {
   const {
     site_url, site_title, admin_user, admin_email, admin_password,
-    github_token, github_repo, github_branch = 'main',
+    github_branch = 'main',
     plugins = ''
   } = body;
 
@@ -68,28 +70,39 @@ async function handleDoInstall(
   }
 
   const siteUrl = site_url || origin;
+  const githubToken = normaliseGitHubToken(body.github_token);
+  const githubRepo = (body.github_repo || 'cfwp-storage').trim();
+  const warnings: string[] = [];
 
   try {
     // ── 1. Set up GitHub storage ───────────────────────────────────
     let githubOwner = '';
-    if (github_token) {
-      const github = new GitHubStorage({ token: github_token, owner: '', repo: github_repo || 'cfwp-storage', branch: github_branch });
-      const user = await github.getAuthenticatedUser();
-      if (!user) return jsonError('GitHub 토큰이 유효하지 않습니다.');
-      githubOwner = user.login;
-
-      // Create repo if not exists
-      const repoName = github_repo || 'cfwp-storage';
-      const repoInfo = await github.getRepoInfo();
-      if (!repoInfo) {
-        await github.createRepo(repoName, 'CF-WordPress Storage', true);
+    if (githubToken && isValidRepositoryName(githubRepo)) {
+      // GitHub storage is optional. A revoked/incorrect token must not make a
+      // fresh CMS installation impossible; D1 and KV remain fully functional.
+      try {
+        const github = new GitHubStorage({ token: githubToken, owner: '', repo: githubRepo, branch: github_branch });
+        const user = await github.getAuthenticatedUser();
+        if (!user) {
+          warnings.push('GitHub 인증에 실패하여 GitHub 스토리지를 건너뛰었습니다. 토큰을 확인한 뒤 관리자에서 다시 연결할 수 있습니다.');
+        } else {
+          githubOwner = user.login;
+          const siteStorage = new GitHubStorage({ token: githubToken, owner: githubOwner, repo: githubRepo, branch: github_branch });
+          const repoInfo = await siteStorage.getRepoInfo();
+          if (!repoInfo && !(await siteStorage.createRepo(githubRepo, 'CF-WordPress Storage', true))) {
+            warnings.push('GitHub 레포지토리를 만들 권한이 없어 GitHub 스토리지를 건너뛰었습니다. 토큰에 Contents read/write 권한을 부여하세요.');
+          } else {
+            await env.OPTIONS.put('opt:github_token', githubToken);
+            await env.OPTIONS.put('opt:github_owner', githubOwner);
+            await env.OPTIONS.put('opt:github_repo', githubRepo);
+            await env.OPTIONS.put('opt:github_branch', repoInfo?.branch || github_branch);
+          }
+        }
+      } catch {
+        warnings.push('GitHub 연결에 실패하여 GitHub 스토리지를 건너뛰었습니다. 네트워크와 토큰을 확인한 뒤 관리자에서 다시 연결할 수 있습니다.');
       }
-
-      // Save GitHub config
-      await env.OPTIONS.put('opt:github_token', github_token);
-      await env.OPTIONS.put('opt:github_owner', githubOwner);
-      await env.OPTIONS.put('opt:github_repo', repoName);
-      await env.OPTIONS.put('opt:github_branch', github_branch);
+    } else if (githubToken) {
+      warnings.push('GitHub 레포지토리 이름이 올바르지 않아 GitHub 스토리지를 건너뛰었습니다.');
     }
 
     // ── 2. Run D1 migrations ───────────────────────────────────────
@@ -173,13 +186,22 @@ async function handleDoInstall(
     return jsonOk({ 
       message: '설치 완료!',
       redirect: '/wp-admin/',
-      site_url: siteUrl
+      site_url: siteUrl,
+      warnings
     });
 
   } catch (err) {
     console.error('Install error:', err);
     return jsonError(`설치 실패: ${String(err)}`, 500);
   }
+}
+
+function normaliseGitHubToken(value: string | undefined): string {
+  return (value || '').trim().replace(/^Bearer\s+/i, '').replace(/^token\s+/i, '');
+}
+
+function isValidRepositoryName(name: string): boolean {
+  return /^[A-Za-z0-9._-]+$/.test(name) && name.length <= 100;
 }
 
 async function runMigrations(db: D1Database): Promise<void> {

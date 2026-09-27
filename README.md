@@ -43,6 +43,8 @@ node scripts/setup.mjs
 
 `setup.mjs`는 D1 1개와 KV namespace 3개(`cache`, `sessions`, `options`)를 생성하고 `wrangler.toml`의 placeholder를 실제 ID로 교체한 뒤 D1 마이그레이션을 적용합니다. Durable Object는 `wrangler.toml`에 선언되어 있으므로 최초 `wrangler deploy`에서 자동 프로비저닝됩니다. 여러 사이트를 한 계정에 설치할 경우 `CLOUDPRESS_RESOURCE_PREFIX=my-site node scripts/setup.mjs`로 리소스 이름을 분리하세요.
 
+GitHub 스토리지는 선택 사항입니다. 설치 화면에서 토큰 인증 또는 레포지토리 생성이 실패해도 D1/KV 기반 CMS 설치는 계속됩니다. GitHub를 사용하려면 classic PAT의 `repo` 권한 또는 대상 레포지토리에 대한 fine-grained PAT의 **Contents: Read and write** 권한을 사용하세요.
+
 ### 2. Secrets 설정
 
 ```bash

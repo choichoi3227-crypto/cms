@@ -13,7 +13,9 @@ export class GitHubStorage {
 
   private headers(): HeadersInit {
     return {
-      'Authorization': `token ${this.config.token}`,
+      // `Bearer` works with both classic and fine-grained PATs. It is also the
+      // authentication scheme GitHub documents for new token types.
+      'Authorization': `Bearer ${this.config.token}`,
       'Accept': 'application/vnd.github.v3+json',
       'Content-Type': 'application/json',
       'User-Agent': 'CloudPress-CMS/2.0',
