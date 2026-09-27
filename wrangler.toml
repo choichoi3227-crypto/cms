@@ -8,19 +8,19 @@ compatibility_flags    = ["nodejs_compat"]
 [[d1_databases]]
 binding = "DB"
 database_name = "cloudpress-cms"
-database_id = "YOUR_D1_DATABASE_ID"
+database_id = "c630c12f-afbd-44c5-8f59-844614970a2d"
 
 [[kv_namespaces]]
 binding = "CACHE"
-id = "YOUR_CACHE_KV_ID"
+id = "9b8370d20a9646b9aa73f63c9200379f"
 
 [[kv_namespaces]]
 binding = "SESSIONS"
-id = "YOUR_SESSIONS_KV_ID"
+id = "19e5e273e99941fbb963300e56dbdf9e"
 
 [[kv_namespaces]]
 binding = "OPTIONS"
-id = "YOUR_OPTIONS_KV_ID"
+id = "a7cf8328050e4203a109c64aa8d43841"
 
 [[durable_objects.bindings]]
 name = "CACHE_COORDINATOR"
