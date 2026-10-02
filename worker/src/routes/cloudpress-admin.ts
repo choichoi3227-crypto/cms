@@ -6,7 +6,7 @@
  * 방문자 페이지:  /  /post/* 등   → frontend.ts 에서 처리 (공개)
  */
 
-import { IRequest } from 'itty-router';
+import { IRequest } from '../router';
 import { Env, SessionData } from '../types/env';
 import { getGithubConfigFromRequest, createGithubStorage } from '../utils/github';
 import { createDB } from '../utils/db';

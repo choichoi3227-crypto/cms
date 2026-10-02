@@ -1,8 +1,9 @@
-import { IRequest } from 'itty-router';
+import { IRequest } from '../router';
 import { Env } from '../types/env';
 import { hashPassword } from '../utils/crypto';
 import { GitHubStorage } from '../utils/github';
 import { INSTALL_HTML } from '../admin/install-page';
+import { purgePageCache } from '../middleware/cache';
 
 export async function handleInstall(request: IRequest, env: Env): Promise<Response> {
   const url = new URL(request.url);
@@ -34,8 +35,10 @@ export async function handleInstall(request: IRequest, env: Env): Promise<Respon
 }
 
 async function handleValidateGithub(body: Record<string, string>, env: Env): Promise<Response> {
-  const { github_token, github_repo } = body;
+  const github_token = normaliseGitHubToken(body.github_token);
+  const github_repo = (body.github_repo || 'cfwp-storage').trim();
   if (!github_token) return jsonError('GitHub token required');
+  if (!isValidRepositoryName(github_repo)) return jsonError('레포지토리 이름은 영문, 숫자, ., _, -만 사용할 수 있습니다.');
 
   const github = new GitHubStorage({
     token: github_token,
@@ -45,7 +48,7 @@ async function handleValidateGithub(body: Record<string, string>, env: Env): Pro
   });
 
   const user = await github.getAuthenticatedUser();
-  if (!user) return jsonError('Invalid GitHub token');
+  if (!user) return jsonError('GitHub 인증에 실패했습니다. 토큰을 다시 만들거나 이 단계를 건너뛰어 D1/KV 전용으로 설치할 수 있습니다.');
 
   return jsonOk({ login: user.login, email: user.email });
 }
@@ -57,7 +60,7 @@ async function handleDoInstall(
 ): Promise<Response> {
   const {
     site_url, site_title, admin_user, admin_email, admin_password,
-    github_token, github_repo, github_branch = 'main',
+    github_branch = 'main',
     plugins = ''
   } = body;
 
@@ -67,28 +70,39 @@ async function handleDoInstall(
   }
 
   const siteUrl = site_url || origin;
+  const githubToken = normaliseGitHubToken(body.github_token);
+  const githubRepo = (body.github_repo || 'cfwp-storage').trim();
+  const warnings: string[] = [];
 
   try {
     // ── 1. Set up GitHub storage ───────────────────────────────────
     let githubOwner = '';
-    if (github_token) {
-      const github = new GitHubStorage({ token: github_token, owner: '', repo: github_repo || 'cfwp-storage', branch: github_branch });
-      const user = await github.getAuthenticatedUser();
-      if (!user) return jsonError('GitHub 토큰이 유효하지 않습니다.');
-      githubOwner = user.login;
-
-      // Create repo if not exists
-      const repoName = github_repo || 'cfwp-storage';
-      const repoInfo = await github.getRepoInfo();
-      if (!repoInfo) {
-        await github.createRepo(repoName, 'CF-WordPress Storage', true);
+    if (githubToken && isValidRepositoryName(githubRepo)) {
+      // GitHub storage is optional. A revoked/incorrect token must not make a
+      // fresh CMS installation impossible; D1 and KV remain fully functional.
+      try {
+        const github = new GitHubStorage({ token: githubToken, owner: '', repo: githubRepo, branch: github_branch });
+        const user = await github.getAuthenticatedUser();
+        if (!user) {
+          warnings.push('GitHub 인증에 실패하여 GitHub 스토리지를 건너뛰었습니다. 토큰을 확인한 뒤 관리자에서 다시 연결할 수 있습니다.');
+        } else {
+          githubOwner = user.login;
+          const siteStorage = new GitHubStorage({ token: githubToken, owner: githubOwner, repo: githubRepo, branch: github_branch });
+          const repoInfo = await siteStorage.getRepoInfo();
+          if (!repoInfo && !(await siteStorage.createRepo(githubRepo, 'CF-WordPress Storage', true))) {
+            warnings.push('GitHub 레포지토리를 만들 권한이 없어 GitHub 스토리지를 건너뛰었습니다. 토큰에 Contents read/write 권한을 부여하세요.');
+          } else {
+            await env.OPTIONS.put('opt:github_token', githubToken);
+            await env.OPTIONS.put('opt:github_owner', githubOwner);
+            await env.OPTIONS.put('opt:github_repo', githubRepo);
+            await env.OPTIONS.put('opt:github_branch', repoInfo?.branch || github_branch);
+          }
+        }
+      } catch {
+        warnings.push('GitHub 연결에 실패하여 GitHub 스토리지를 건너뛰었습니다. 네트워크와 토큰을 확인한 뒤 관리자에서 다시 연결할 수 있습니다.');
       }
-
-      // Save GitHub config
-      await env.OPTIONS.put('opt:github_token', github_token);
-      await env.OPTIONS.put('opt:github_owner', githubOwner);
-      await env.OPTIONS.put('opt:github_repo', repoName);
-      await env.OPTIONS.put('opt:github_branch', github_branch);
+    } else if (githubToken) {
+      warnings.push('GitHub 레포지토리 이름이 올바르지 않아 GitHub 스토리지를 건너뛰었습니다.');
     }
 
     // ── 2. Run D1 migrations ───────────────────────────────────────
@@ -98,16 +112,32 @@ async function handleDoInstall(
     const hashedPw = await hashPassword(admin_password);
     const now = new Date().toISOString().replace('T', ' ').split('.')[0];
 
-    await env.DB.prepare(`
-      INSERT INTO wp_users (user_login, user_pass, user_email, user_registered, display_name, user_nicename, user_url, user_status)
-      VALUES (?, ?, ?, ?, ?, ?, '', 0)
-    `).bind(admin_user, hashedPw, admin_email, now, admin_user, admin_user.toLowerCase()).run();
+    // Resume incomplete installations instead of failing on an existing admin
+    // username or email address.
+    const existingByLogin = await env.DB.prepare('SELECT ID FROM wp_users WHERE user_login = ?').bind(admin_user).first<{ ID: number }>();
+    const existingByEmail = await env.DB.prepare('SELECT ID FROM wp_users WHERE user_email = ?').bind(admin_email).first<{ ID: number }>();
+    if (existingByLogin && existingByEmail && existingByLogin.ID !== existingByEmail.ID) {
+      return jsonError('입력한 사용자명과 이메일이 서로 다른 기존 계정에 연결되어 있습니다. 기존 관리자 계정의 사용자명 또는 이메일을 사용하세요.', 409);
+    }
+    const existingAdmin = existingByLogin || existingByEmail;
+    if (existingAdmin) {
+      await env.DB.prepare(
+        'UPDATE wp_users SET user_login = ?, user_pass = ?, user_email = ?, display_name = ?, user_nicename = ? WHERE ID = ?'
+      ).bind(admin_user, hashedPw, admin_email, admin_user, admin_user.toLowerCase(), existingAdmin.ID).run();
+    } else {
+      await env.DB.prepare(`
+        INSERT INTO wp_users (user_login, user_pass, user_email, user_registered, display_name, user_nicename, user_url, user_status)
+        VALUES (?, ?, ?, ?, ?, ?, '', 0)
+      `).bind(admin_user, hashedPw, admin_email, now, admin_user, admin_user.toLowerCase()).run();
+    }
 
     const userRow = await env.DB.prepare('SELECT ID FROM wp_users WHERE user_login = ?').bind(admin_user).first<{ ID: number }>();
-    const userId = userRow?.ID || 1;
+    const userId = userRow?.ID || existingAdmin?.ID || 1;
 
     // Set admin capabilities
     const caps = JSON.stringify({ administrator: true });
+    await env.DB.prepare('DELETE FROM wp_usermeta WHERE user_id = ? AND meta_key = ?').bind(userId, 'wp_capabilities').run();
+    await env.DB.prepare('DELETE FROM wp_usermeta WHERE user_id = ? AND meta_key = ?').bind(userId, 'wp_user_level').run();
     await env.DB.prepare('INSERT INTO wp_usermeta (user_id, meta_key, meta_value) VALUES (?, ?, ?)')
       .bind(userId, 'wp_capabilities', caps).run();
     await env.DB.prepare('INSERT INTO wp_usermeta (user_id, meta_key, meta_value) VALUES (?, ?, ?)')
@@ -160,24 +190,38 @@ async function handleDoInstall(
       now, now, `${siteUrl}/?page_id=2`).run();
 
     // Default term (category)
-    await env.DB.prepare('INSERT INTO wp_terms (name, slug, term_group) VALUES (?, ?, 0)').bind('미분류', 'uncategorized', 0).run();
-    await env.DB.prepare('INSERT INTO wp_term_taxonomy (term_id, taxonomy, description, parent, count) VALUES (1, ?, "", 0, 1)').bind('category').run();
-    await env.DB.prepare('INSERT INTO wp_term_relationships (object_id, term_taxonomy_id) VALUES (1, 1)').run();
+    await env.DB.prepare('INSERT OR IGNORE INTO wp_terms (name, slug, term_group) VALUES (?, ?, 0)').bind('미분류', 'uncategorized').run();
+    const defaultTerm = await env.DB.prepare('SELECT term_id FROM wp_terms WHERE slug = ?').bind('uncategorized').first<{ term_id: number }>();
+    if (defaultTerm) {
+      await env.DB.prepare('INSERT OR IGNORE INTO wp_term_taxonomy (term_id, taxonomy, description, parent, count) VALUES (?, ?, "", 0, 1)').bind(defaultTerm.term_id, 'category').run();
+      const taxonomy = await env.DB.prepare('SELECT term_taxonomy_id FROM wp_term_taxonomy WHERE term_id = ? AND taxonomy = ?').bind(defaultTerm.term_id, 'category').first<{ term_taxonomy_id: number }>();
+      if (taxonomy) await env.DB.prepare('INSERT OR IGNORE INTO wp_term_relationships (object_id, term_taxonomy_id) VALUES (1, ?)').bind(taxonomy.term_taxonomy_id).run();
+    }
     await env.OPTIONS.put('opt:default_category', '1');
 
     // ── 6. Flush options to KV ───────────────────────────────────
     await env.OPTIONS.put('opt:installed', '1');
+    await purgePageCache(env);
 
     return jsonOk({ 
       message: '설치 완료!',
       redirect: '/wp-admin/',
-      site_url: siteUrl
+      site_url: siteUrl,
+      warnings
     });
 
   } catch (err) {
     console.error('Install error:', err);
     return jsonError(`설치 실패: ${String(err)}`, 500);
   }
+}
+
+function normaliseGitHubToken(value: string | undefined): string {
+  return (value || '').trim().replace(/^Bearer\s+/i, '').replace(/^token\s+/i, '');
+}
+
+function isValidRepositoryName(name: string): boolean {
+  return /^[A-Za-z0-9._-]+$/.test(name) && name.length <= 100;
 }
 
 async function runMigrations(db: D1Database): Promise<void> {
@@ -202,6 +246,19 @@ async function runMigrations(db: D1Database): Promise<void> {
       display_name TEXT NOT NULL DEFAULT ''
     )`,
     `CREATE UNIQUE INDEX IF NOT EXISTS wp_users_login ON wp_users(user_login)`,
+    `CREATE TABLE IF NOT EXISTS wp_api_tokens (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      token_hash TEXT NOT NULL UNIQUE,
+      token_type TEXT NOT NULL CHECK(token_type IN ('public', 'secret')),
+      scopes TEXT NOT NULL,
+      created_by INTEGER NOT NULL,
+      created_at TEXT NOT NULL,
+      expires_at TEXT,
+      last_used_at TEXT,
+      revoked_at TEXT
+    )`,
+    `CREATE INDEX IF NOT EXISTS wp_api_tokens_active ON wp_api_tokens(token_hash, revoked_at, expires_at)`,
     `CREATE TABLE IF NOT EXISTS wp_usermeta (
       umeta_id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL DEFAULT 0,

@@ -1,8 +1,37 @@
 # CloudPress CMS — wrangler.toml
 name                   = "cloudpress-cms"
-pages_build_output_dir = "dist"
+main                   = "worker/src/index.ts"
 compatibility_date     = "2025-04-01"
 compatibility_flags    = ["nodejs_compat"]
+
+# `node scripts/setup.mjs` replaces these local placeholders with account IDs.
+[[d1_databases]]
+binding = "DB"
+database_name = "cloudpress-cms"
+database_id = "YOUR_D1_DATABASE_ID"
+
+[[kv_namespaces]]
+binding = "CACHE"
+id = "YOUR_CACHE_KV_ID"
+
+[[kv_namespaces]]
+binding = "SESSIONS"
+id = "YOUR_SESSIONS_KV_ID"
+
+[[kv_namespaces]]
+binding = "OPTIONS"
+id = "YOUR_OPTIONS_KV_ID"
+
+[[durable_objects.bindings]]
+name = "CACHE_COORDINATOR"
+class_name = "CacheCoordinator"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["CacheCoordinator"]
+
+[triggers]
+crons = ["*/5 * * * *"]
 [vars]
 WP_TABLE_PREFIX = "wp_"
 SITE_URL        = "https://cloud-press.co.kr"

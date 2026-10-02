@@ -1,4 +1,4 @@
-import { IRequest } from 'itty-router';
+import { IRequest } from '../router';
 import { Env } from '../types/env';
 import { createDB } from '../utils/db';
 import { hashPassword } from '../utils/crypto';
@@ -7,6 +7,12 @@ export async function handlePublicAPI(request: IRequest, env: Env): Promise<Resp
   const url = new URL(request.url);
   const route = url.pathname.replace('/api', '');
   const method = request.method.toUpperCase();
+
+  // This legacy endpoint is used by the admin UI. Never allow its mutating
+  // operations to become an unauthenticated public management API.
+  if (!['GET', 'HEAD', 'OPTIONS'].includes(method) && !await hasAdminSession(request, env)) {
+    return jsonError('관리자 인증이 필요합니다.', 401);
+  }
 
   const db = createDB(env);
 
@@ -92,6 +98,15 @@ export async function handlePublicAPI(request: IRequest, env: Env): Promise<Resp
   }
 
   return jsonError('Not Found', 404);
+}
+
+async function hasAdminSession(request: Request, env: Env): Promise<boolean> {
+  const cookie = request.headers.get('Cookie') || '';
+  const bearer = request.headers.get('Authorization')?.replace(/^Bearer\s+/i, '');
+  const token = bearer || request.headers.get('X-WP-Nonce') || cookie.match(/wordpress_logged_in_[^=]+=([^;]+)/)?.[1]?.split('|')[2];
+  if (!token) return false;
+  const session = await env.SESSIONS.get<{ roles: string[] }>(`session:${token}`, 'json');
+  return !!session?.roles.includes('administrator');
 }
 
 async function handleSaveOptions(request: IRequest, db: ReturnType<typeof createDB>, env: Env): Promise<Response> {

@@ -1,18 +1,18 @@
 # CF-WordPress
 
-**Cloudflare Workers 기반 WordPress 완벽 호환 CMS**
+**Cloudflare Workers 기반 WordPress 호환 CMS**
 
-WordPress를 완벽하게 대체하는 서버리스 CMS입니다. Cloudflare Workers, D1, KV에서 동작하며 GitHub를 파일 스토리지로 사용합니다.
+Cloudflare Workers에서 동작하는 서버리스 CMS입니다. D1은 관계형 CMS 데이터, KV는 세션·옵션·응답 캐시, Durable Object는 원자적 캐시 무효화를 담당하며 GitHub는 선택적인 파일 스토리지로 사용할 수 있습니다.
 
 ---
 
 ## ✨ 주요 기능
 
-- **WordPress 완벽 호환** - WordPress REST API v2, 관리자 UI, 구텐베르크 블록 에디터 100% 구현
+- **WordPress 호환 API** - WordPress REST API v2, 관리자 UI, 구텐베르크 블록 에디터 제공
 - **WordPress 플러그인/테마 지원** - WordPress.org에서 직접 검색·설치, zip 파일 업로드 설치
 - **구텐베르크 블록 에디터** - `/` 명령어로 35+ 블록 타입 삽입, 실시간 편집
 - **GitHub 스토리지** - 미디어, 테마, 플러그인 파일을 GitHub 레포지토리에 저장
-- **초고속** - Cloudflare Edge 캐싱, D1 + KV 데이터베이스로 VPS보다 빠름
+- **일관된 고속 캐시** - KV 페이지 캐시와 Durable Object generation 기반 즉시 무효화
 - **번들 플러그인** - WP Rocket, AIBP Pro, AL Pack, Bridge Migration 기본 포함
 
 ---
@@ -41,6 +41,14 @@ npm install
 node scripts/setup.mjs
 ```
 
+`setup.mjs`는 D1 1개와 KV namespace 3개(`cache`, `sessions`, `options`)를 생성하고 `wrangler.toml`의 placeholder를 실제 ID로 교체한 뒤 D1 마이그레이션을 적용합니다. Durable Object는 `wrangler.toml`에 선언되어 있으므로 최초 `wrangler deploy`에서 자동 프로비저닝됩니다. 여러 사이트를 한 계정에 설치할 경우 `CLOUDPRESS_RESOURCE_PREFIX=my-site node scripts/setup.mjs`로 리소스 이름을 분리하세요.
+
+GitHub 스토리지는 선택 사항입니다. 설치 화면에서 토큰 인증 또는 레포지토리 생성이 실패해도 D1/KV 기반 CMS 설치는 계속됩니다. GitHub를 사용하려면 classic PAT의 `repo` 권한 또는 대상 레포지토리에 대한 fine-grained PAT의 **Contents: Read and write** 권한을 사용하세요.
+
+### 자동화 API 토큰
+
+호스팅 자동화 서비스는 관리자 로그인 세션으로 `POST /api/v1/tokens`를 호출해 토큰을 발급할 수 있습니다. 요청에는 `name`, `type` (`public` 또는 `secret`), `scopes`를 포함합니다. 토큰 원문은 발급 응답에서 한 번만 제공되며 D1에는 SHA-256 해시만 저장됩니다. `GET /api/v1/site`에는 `Authorization: Bearer cp_pub_...` 또는 `cp_sec_...`와 `site:read` scope가 필요합니다. 지원 scope는 `site:read`, `content:read`, `content:write`, `users:manage`이며, `DELETE /api/v1/tokens/:id`로 토큰을 폐기할 수 있습니다.
+
 ### 2. Secrets 설정
 
 ```bash
@@ -55,7 +63,7 @@ npx wrangler secret put ENCRYPTION_KEY
 ### 3. 로컬 개발
 
 ```bash
-npm run dev
+npm run dev:worker
 # http://localhost:8787 에서 실행
 # /wp-setup 으로 이동하여 설치 마법사 시작
 ```
@@ -63,9 +71,18 @@ npm run dev
 ### 4. 배포
 
 ```bash
-npm run deploy
+npx wrangler deploy
 # 배포 후 https://your-worker.workers.dev/wp-setup 에서 설치
 ```
+
+---
+
+## 운영 보안과 자동화
+
+- 공개 페이지는 로그인 쿠키, 관리자, API 경로를 캐시하지 않습니다. `Set-Cookie`가 포함된 응답도 캐시 저장에서 제외합니다.
+- CMS 쓰기 요청과 예약 발행은 Durable Object의 cache generation을 증가시킵니다. 기존 KV 키를 순회 삭제하지 않아도 다음 읽기부터 새 generation만 사용하므로 빠르고 경합이 없습니다.
+- `JWT_SECRET`, `ENCRYPTION_KEY`, `GITHUB_TOKEN`은 반드시 `wrangler secret put <NAME>`으로 설정하고 저장소·`wrangler.toml`에 넣지 마세요.
+- 배포 전 `npm run build`와 `npm run check:worker`를 실행하세요. 후자는 실제 배포 없이 Worker 번들 및 D1/KV/DO binding을 검증합니다.
 
 ---
 
