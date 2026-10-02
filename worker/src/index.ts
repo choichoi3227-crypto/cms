@@ -15,6 +15,7 @@ import { corsMiddleware } from './middleware/cors';
 import { cacheMiddleware } from './middleware/cache';
 import { handleClouPressAdmin } from './routes/cloudpress-admin';
 import { Env } from './types/env';
+import { handleAutomationAPI } from './routes/automation-api';
 export { CacheCoordinator } from './durable-objects/cache-coordinator';
 
 const router = new Router<Env>();
@@ -65,6 +66,7 @@ router.get('/wp-content/themes/*', async (req: IRequest, env: Env) => {
 });
 
 // ─── Public API ───────────────────────────────────────────────────
+router.all('/api/v1/*', corsMiddleware, handleAutomationAPI);
 router.all('/api/*', corsMiddleware, handlePublicAPI);
 
 // ─── Frontend (public site) ───────────────────────────────────────

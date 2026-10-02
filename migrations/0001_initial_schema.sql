@@ -25,6 +25,21 @@ CREATE UNIQUE INDEX IF NOT EXISTS wp_users_user_login_key ON wp_users(user_login
 CREATE INDEX IF NOT EXISTS wp_users_user_nicename ON wp_users(user_nicename);
 CREATE INDEX IF NOT EXISTS wp_users_user_email ON wp_users(user_email);
 
+-- Automation API credentials. Only a SHA-256 digest is stored in D1.
+CREATE TABLE IF NOT EXISTS wp_api_tokens (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  token_hash TEXT NOT NULL UNIQUE,
+  token_type TEXT NOT NULL CHECK(token_type IN ('public', 'secret')),
+  scopes TEXT NOT NULL,
+  created_by INTEGER NOT NULL,
+  created_at TEXT NOT NULL,
+  expires_at TEXT,
+  last_used_at TEXT,
+  revoked_at TEXT
+);
+CREATE INDEX IF NOT EXISTS wp_api_tokens_active ON wp_api_tokens(token_hash, revoked_at, expires_at);
+
 CREATE TABLE IF NOT EXISTS wp_usermeta (
   umeta_id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL DEFAULT 0,

@@ -45,6 +45,10 @@ node scripts/setup.mjs
 
 GitHub 스토리지는 선택 사항입니다. 설치 화면에서 토큰 인증 또는 레포지토리 생성이 실패해도 D1/KV 기반 CMS 설치는 계속됩니다. GitHub를 사용하려면 classic PAT의 `repo` 권한 또는 대상 레포지토리에 대한 fine-grained PAT의 **Contents: Read and write** 권한을 사용하세요.
 
+### 자동화 API 토큰
+
+호스팅 자동화 서비스는 관리자 로그인 세션으로 `POST /api/v1/tokens`를 호출해 토큰을 발급할 수 있습니다. 요청에는 `name`, `type` (`public` 또는 `secret`), `scopes`를 포함합니다. 토큰 원문은 발급 응답에서 한 번만 제공되며 D1에는 SHA-256 해시만 저장됩니다. `GET /api/v1/site`에는 `Authorization: Bearer cp_pub_...` 또는 `cp_sec_...`와 `site:read` scope가 필요합니다. 지원 scope는 `site:read`, `content:read`, `content:write`, `users:manage`이며, `DELETE /api/v1/tokens/:id`로 토큰을 폐기할 수 있습니다.
+
 ### 2. Secrets 설정
 
 ```bash
