@@ -189,3 +189,10 @@ export interface CloudPressSite {
   storage_used: number;
   created_at: string;
 }
+
+// D1 WordPress-compatible row shapes used by the Worker runtime.
+export interface WPPost { ID: number; post_author: number; post_date: string; post_date_gmt: string; post_content: string; post_title: string; post_excerpt: string; post_status: string; comment_status: string; ping_status: string; post_name: string; post_modified: string; post_modified_gmt: string; post_parent: number; guid: string; menu_order: number; post_type: string; post_mime_type: string; comment_count: number; }
+export interface WPUser { ID: number; user_login: string; user_pass: string; user_nicename: string; user_email: string; user_url: string; user_registered: string; display_name: string; user_status: number; }
+export interface WPTerm { term_id: number; name: string; slug: string; term_group: number; term_taxonomy_id: number; taxonomy: string; description: string; parent: number; count: number; }
+export interface WPOption { option_id: number; option_name: string; option_value: string; autoload: string; }
+export interface WPComment { comment_ID: number; comment_post_ID: number; comment_author: string; comment_author_email: string; comment_content: string; comment_approved: string; comment_date: string; }
