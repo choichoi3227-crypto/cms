@@ -1,4 +1,4 @@
-import { IRequest } from 'itty-router';
+import { IRequest } from '../router';
 
 export function corsMiddleware(request: IRequest): Response | undefined {
   if (request.method === 'OPTIONS') {
@@ -11,12 +11,15 @@ export function corsMiddleware(request: IRequest): Response | undefined {
 }
 
 export function corsHeaders(request: Request): HeadersInit {
-  const origin = request.headers.get('Origin') || '*';
+  const origin = request.headers.get('Origin');
+  const sameOrigin = origin === new URL(request.url).origin;
   return {
-    'Access-Control-Allow-Origin': origin,
+    // Do not reflect arbitrary Origins while allowing credentials: that turns
+    // every authenticated browser into a cross-site admin API client.
+    'Access-Control-Allow-Origin': sameOrigin ? origin! : 'null',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-WP-Nonce, X-Requested-With',
-    'Access-Control-Allow-Credentials': 'true',
+    'Access-Control-Allow-Credentials': sameOrigin ? 'true' : 'false',
     'Access-Control-Max-Age': '86400',
     'Vary': 'Origin'
   };

@@ -3,7 +3,7 @@
  * WordPress 호환 CMS on Cloudflare Workers
  */
 
-import { Router, IRequest } from 'itty-router';
+import { Router, IRequest } from './router';
 import { handleInstall } from './routes/install';
 import { handleAdminAPI } from './routes/admin-api';
 import { handlePublicAPI } from './routes/public-api';
@@ -15,8 +15,10 @@ import { corsMiddleware } from './middleware/cors';
 import { cacheMiddleware } from './middleware/cache';
 import { handleClouPressAdmin } from './routes/cloudpress-admin';
 import { Env } from './types/env';
+import { handleAutomationAPI } from './routes/automation-api';
+export { CacheCoordinator } from './durable-objects/cache-coordinator';
 
-const router = Router<IRequest, [Env, ExecutionContext]>();
+const router = new Router<Env>();
 
 // ─── CORS preflight ───────────────────────────────────────────────
 router.options('*', corsMiddleware);
@@ -64,6 +66,7 @@ router.get('/wp-content/themes/*', async (req: IRequest, env: Env) => {
 });
 
 // ─── Public API ───────────────────────────────────────────────────
+router.all('/api/v1/*', corsMiddleware, handleAutomationAPI);
 router.all('/api/*', corsMiddleware, handlePublicAPI);
 
 // ─── Frontend (public site) ───────────────────────────────────────
@@ -74,6 +77,7 @@ router.all('*', handleFrontend);
 async function handleStaticPluginAsset(req: IRequest, env: Env): Promise<Response> {
   const url = new URL(req.url);
   const path = url.pathname.replace('/wp-content/plugins/', '');
+  if (!isSafeAssetPath(path)) return new Response('Not Found', { status: 404 });
   // 플러그인 파일을 DB에서 조회
   try {
     const [slug, ...fileParts] = path.split('/');
@@ -99,6 +103,7 @@ async function handleStaticPluginAsset(req: IRequest, env: Env): Promise<Respons
 async function handleStaticThemeAsset(req: IRequest, env: Env): Promise<Response> {
   const url = new URL(req.url);
   const path = url.pathname.replace('/wp-content/themes/', '');
+  if (!isSafeAssetPath(path)) return new Response('Not Found', { status: 404 });
   try {
     const [slug, ...fileParts] = path.split('/');
     const filePath = fileParts.join('/');
@@ -113,6 +118,10 @@ async function handleStaticThemeAsset(req: IRequest, env: Env): Promise<Response
     }
   } catch {}
   return new Response('Not Found', { status: 404 });
+}
+
+function isSafeAssetPath(path: string): boolean {
+  return !!path && !path.includes('..') && !path.includes('\\') && !path.startsWith('/');
 }
 
 function getMimeType(path: string): string {
@@ -134,7 +143,7 @@ export default {
       const url = new URL(request.url);
 
       // 설치 여부 확인 (OPTIONS KV 사용)
-      const installed = await env.OPTIONS.get('siteurl').catch(() => null);
+      const installed = await env.OPTIONS.get('opt:installed').catch(() => null);
 
       if (!installed &&
           !url.pathname.startsWith('/wp-setup') &&
@@ -143,10 +152,19 @@ export default {
         return Response.redirect(`${url.origin}/wp-setup`, 302);
       }
 
-      return await router.fetch(request, env, ctx) ?? new Response('Not Found', { status: 404 });
+      const response = await router.fetch(request, env, ctx) ?? new Response('Not Found', { status: 404 });
+      // All authenticated CMS writes use these route families.  Advance the
+      // generation after a successful mutation so edge/KV readers cannot see
+      // stale pages.  The Durable Object makes concurrent invalidations safe.
+      if (request.method !== 'GET' && request.method !== 'HEAD' && response.ok &&
+          (url.pathname.startsWith('/wp-admin/') || url.pathname.startsWith('/wp-json/'))) {
+        const id = env.CACHE_COORDINATOR.idFromName('site');
+        ctx.waitUntil(env.CACHE_COORDINATOR.get(id).fetch('https://cache.internal/purge', { method: 'POST' }).then(() => undefined));
+      }
+      return response;
     } catch (err) {
       console.error('Worker error:', err);
-      return new Response(JSON.stringify({ error: 'Internal Server Error', message: String(err) }), {
+      return new Response(JSON.stringify({ error: 'Internal Server Error' }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' }
       });
@@ -167,4 +185,6 @@ async function handleScheduled(_event: ScheduledEvent, env: Env): Promise<void> 
   ).bind(now, now, now).run().catch(() => {});
   // 옵션 캐시 갱신
   await env.OPTIONS.delete('opt:siteurl').catch(() => {});
+  const id = env.CACHE_COORDINATOR.idFromName('site');
+  await env.CACHE_COORDINATOR.get(id).fetch('https://cache.internal/purge').catch(() => {});
 }

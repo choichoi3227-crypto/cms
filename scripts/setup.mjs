@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
  * CF-WordPress Setup Script
- * Automatically creates Cloudflare D1 databases and KV namespaces
+ * Automatically creates Cloudflare D1 databases and KV namespaces.
+ * Durable Objects are declared in wrangler.toml and provisioned on deploy.
  * and updates wrangler.toml
  *
  * Usage: node scripts/setup.mjs [--account-id ACCOUNT_ID] [--api-token API_TOKEN]
@@ -43,22 +44,24 @@ async function main() {
   }
   console.log(`✓ Wrangler ${wranglerVersion}`);
 
+  const resourcePrefix = process.env.CLOUDPRESS_RESOURCE_PREFIX || 'cloudpress-cms';
+
   // ── Create D1 database ──────────────────────────────────────────
   console.log('\n[1/4] Creating D1 database...');
   let d1Id = '';
   const existingD1 = run('npx wrangler d1 list --json');
   const d1List = parseJSON(existingD1) || [];
-  const existingDb = d1List.find(db => db.name === 'cfwp-db');
+  const existingDb = d1List.find(db => db.name === resourcePrefix);
 
   if (existingDb) {
     d1Id = existingDb.uuid;
-    console.log(`  ✓ Using existing D1 database: cfwp-db (${d1Id})`);
+    console.log(`  ✓ Using existing D1 database: ${resourcePrefix} (${d1Id})`);
   } else {
-    const result = run('npx wrangler d1 create cfwp-db --json');
+    const result = run(`npx wrangler d1 create ${resourcePrefix} --json`);
     const data = parseJSON(result);
     if (data?.uuid) {
       d1Id = data.uuid;
-      console.log(`  ✓ Created D1 database: cfwp-db (${d1Id})`);
+      console.log(`  ✓ Created D1 database: ${resourcePrefix} (${d1Id})`);
     } else {
       console.error('  ✗ Failed to create D1 database');
       process.exit(1);
@@ -67,7 +70,7 @@ async function main() {
 
   // ── Create KV namespaces ────────────────────────────────────────
   console.log('\n[2/4] Creating KV namespaces...');
-  const kvNames = ['cfwp-cache', 'cfwp-sessions', 'cfwp-options'];
+  const kvNames = [`${resourcePrefix}-cache`, `${resourcePrefix}-sessions`, `${resourcePrefix}-options`];
   const kvIds = {};
 
   const existingKV = run('npx wrangler kv namespace list --json');
@@ -103,22 +106,24 @@ async function main() {
   console.log('\n[3/4] Updating wrangler.toml...');
   let toml = readFileSync(join(ROOT, 'wrangler.toml'), 'utf8');
 
-  toml = toml.replace('YOUR_D1_DATABASE_ID', d1Id);
-  toml = toml.replace(/(\[\[kv_namespaces\]\]\nbinding = "CACHE"\nid = )"[^"]*"/, `$1"${kvIds['cfwp-cache'] || 'REPLACE'}"`);
-  toml = toml.replace(/(\[\[kv_namespaces\]\]\nbinding = "SESSIONS"\nid = )"[^"]*"/, `$1"${kvIds['cfwp-sessions'] || 'REPLACE'}"`);
-  toml = toml.replace(/(\[\[kv_namespaces\]\]\nbinding = "OPTIONS"\nid = )"[^"]*"/, `$1"${kvIds['cfwp-options'] || 'REPLACE'}"`);
+  toml = toml.replace(/(database_name\s*=\s*)"[^"]*"/, `$1"${resourcePrefix}"`);
+  toml = toml.replace(/(database_id\s*=\s*)"[^"]*"/, `$1"${d1Id}"`);
+  for (const [binding, name] of [['CACHE', kvNames[0]], ['SESSIONS', kvNames[1]], ['OPTIONS', kvNames[2]]]) {
+    const expression = new RegExp(`(\\[\\[kv_namespaces\\]\\]\\nbinding = "${binding}"\\nid = )"[^"]*"`);
+    toml = toml.replace(expression, `$1"${kvIds[name] || 'REPLACE_WITH_KV_ID'}"`);
+  }
 
   writeFileSync(join(ROOT, 'wrangler.toml'), toml);
   console.log('  ✓ wrangler.toml updated');
 
   // ── Run migrations ──────────────────────────────────────────────
   console.log('\n[4/4] Running D1 migrations...');
-  const migrateLocal = run('npx wrangler d1 migrations apply cfwp-db --local');
+  const migrateLocal = run(`npx wrangler d1 migrations apply ${resourcePrefix} --local`);
   if (migrateLocal !== null) {
     console.log('  ✓ Local migrations applied');
   }
 
-  const migrateRemote = run('npx wrangler d1 migrations apply cfwp-db');
+  const migrateRemote = run(`npx wrangler d1 migrations apply ${resourcePrefix}`);
   if (migrateRemote !== null) {
     console.log('  ✓ Remote migrations applied');
   }
